@@ -1,0 +1,307 @@
+@startuml
+title Test
+skinparam shadowing false
+hide empty members
+package "Domain" #E8F5E9 {
+  [Enums]
+  [ValueObjects]
+  [Model / Entities]
+  [Repository]
+}
+package "Creational" #FFF9C4 {
+  [Singleton]
+  [Factory Method]
+  [Abstract Factory]
+  [Builder]
+  [Prototype]
+}
+package "Structural" #E1F5FE {
+  [Adapter]
+  [Composite]
+  [Decorator]
+  [Facade]
+  [Proxy]
+}
+package "Behavioral" #FCE4EC {
+  [Strategy]
+  [Observer]
+  [Command]
+  [Template Method]
+  [State]
+}
+package "Context (Bounded Contexts)" #D1C4E9 {
+  [Combat]
+  [Inventory]
+  [Billing]
+}
+[Domain] ..> [Creational]
+[Domain] ..> [Structural]
+[Domain] ..> [Behavioral]
+[Creational] ..> [Structural]
+[Behavioral] ..> [Structural]
+[Context (Bounded Contexts)] ..> [Behavioral]
+[Context (Bounded Contexts)] ..> [Structural]
+[Context (Bounded Contexts)] ..> [Domain]
+package "Enum" #F3E5F5 {
+  enum CharacterClass {
+    Warrior
+    Mage
+    Hunter
+  }
+  enum Race {
+    Orc
+    Human
+    NightElf
+    Undead
+  }
+  enum CharacterState {
+    Normal
+    Stunned
+    Dead
+    Poisoned
+    Frozen
+  }
+  enum DamageType {
+    Physical
+    Fire
+    Frost
+    Arcane
+    Shadow
+    Nature
+    Holy
+  }
+  enum ItemSlot {
+    Head
+    Chest
+    Legs
+    Feet
+    Hands
+    MainHand
+    OffHand
+  }
+  enum ItemQuality {
+    Poor
+    Common
+    Uncommon
+    Rare
+    Epic
+    Legendary
+  }
+  enum ArmorType {
+    Cloth
+    Leather
+    Mail
+    Plate
+    Shield
+  }
+  enum WeaponType {
+    Sword
+    Axe
+    Mace
+    Dagger
+    Staff
+    Bow
+    Wand
+    Polearm
+  }
+}
+package "ValueObject (readonly, inmutables)" #E8F5E9 {
+  class HealthPoints <<readonly>> {
+    +current : int
+    +maximum : int
+    --
+    +full(maximum) : HealthPoints
+    +empty(maximum) : HealthPoints
+    +isFull() : bool
+    +isEmpty() : bool
+    +getPercentage() : float
+    +heal(amount) : HealthPoints
+    +damage(amount) : HealthPoints
+    +withCurrent(new) : HealthPoints
+    +withMaximum(new) : HealthPoints
+  }
+  class ManaPoints <<readonly>> {
+    +current : int
+    +maximum : int
+    --
+    +full(maximum) : ManaPoints
+    +empty() : ManaPoints
+    +spend(amount) : ManaPoints
+    +restore(amount) : ManaPoints
+    +canAfford(cost) : bool
+    +isFull() : bool
+    +isEmpty() : bool
+    +getPercentage() : float
+  }
+  class GoldAmount <<readonly>> {
+    +copper : int
+    --
+    +fromGold(g) : GoldAmount
+    +fromSilver(s) : GoldAmount
+    +fromCopper(c) : GoldAmount
+    +add(other) : GoldAmount
+    +subtract(other) : GoldAmount
+    +multiply(factor) : GoldAmount
+    +canAfford(cost) : bool
+    +getGold() : int
+    +getSilver() : int
+    +getCopper() : int
+  }
+  class Attributes <<readonly>> {
+    +strength : int
+    +agility : int
+    +intellect : int
+    +stamina : int
+    +spirit : int
+    +armor : int
+    +fireResistance : int
+    +frostResistance : int
+    +arcaneResistance : int
+    +shadowResistance : int
+    --
+    +base(class) : Attributes
+    +add(other) : Attributes
+    +getAttackPower() : int
+    +getSpellPower() : int
+    +getHealthBonus() : int
+    +getManaBonus() : int
+    +getCritChance() : float
+  }
+  class ItemId <<readonly>> {
+    +value : string
+  }
+  class ItemLevel <<readonly>> {
+    +value : int
+  }
+  class Item <<readonly>> {
+    +id : ItemId
+    +name : string
+    +slot : ItemSlot
+    +quality : ItemQuality
+    +level : ItemLevel
+    +attributes : Attributes
+    +buyPrice : GoldAmount
+    +sellPrice : GoldAmount
+    +isEquippable : bool
+  }
+}
+package "Model (Entidades)" #E3F2FD {
+  class PlayerCharacter <<Entity>> {
+    -id : string
+    -name : string
+    -class : CharacterClass
+    -race : Race
+    -level : int
+    -experience : int
+    -health : HealthPoints
+    -mana : ManaPoints
+    -gold : GoldAmount
+    -state : CharacterState
+    -baseAttributes : Attributes
+    -equipmentAttributes : Attributes
+    -equipment : array
+    -activeEffects : array
+    --
+    +getId() : string
+    +getName() : string
+    +getClass() : CharacterClass
+    +getRace() : Race
+    +getLevel() : int
+    +getHealth() : HealthPoints
+    +getMana() : ManaPoints
+    +getGold() : GoldAmount
+    +getState() : CharacterState
+    +getTotalAttributes() : Attributes
+    +equipItem(item) : void
+    +unequipSlot(slot) : Item
+    +addExperience(amount) : void
+    +takeDamage(amount) : void
+    +heal(amount) : void
+    +spendMana(amount) : void
+    +restoreMana(amount) : void
+    +addGold(amount) : void
+    +spendGold(amount) : void
+    +setState(state) : void
+    +die() : void
+    +revive() : void
+    +canAct() : bool
+    +applyEffect(name, duration) : void
+    +removeEffect(name) : void
+    +hasEffect(name) : bool
+    +tickEffects() : void
+    +getAttackPower() : int
+    +getSpellPower() : int
+    +getCritChance() : float
+  }
+  class Skill <<readonly>> {
+    +id : string
+    +name : string
+    +requiredClass : CharacterClass
+    +requiredLevel : int
+    +damageType : DamageType
+    +baseDamage : int
+    +manaCost : int
+    +coefficient : float
+    +cooldownSeconds : int
+    +description : string
+    --
+    +calculateDamage(caster) : int
+    +canCast(caster) : bool
+  }
+  abstract class Quest {
+    -id : string
+    -title : string
+    -description : string
+    -requiredLevel : int
+    -rewardGold : GoldAmount
+    -experienceReward : int
+    -rewardItem : Item
+    -isCompleted : bool
+    --
+    +getId() : string
+    +getTitle() : string
+    +getRewardGold() : GoldAmount
+    +getExperienceReward() : int
+    +isCompleted() : bool
+    +markCompleted() : void
+    +canStart(character) : bool
+    +isComplete(character) : bool
+    +getProgress(character) : string
+  }
+  class SimpleQuest {
+    -completionCheck : Closure
+    -progressCheck : Closure
+  }
+  class CompositeQuest {
+    -subQuests : array
+    --
+    +addSubQuest(quest) : void
+    +getSubQuests() : array
+  }
+}
+PlayerCharacter --> CharacterClass
+PlayerCharacter --> Race
+PlayerCharacter --> CharacterState
+PlayerCharacter *-- HealthPoints
+PlayerCharacter *-- ManaPoints
+PlayerCharacter *-- GoldAmount
+PlayerCharacter *-- Attributes : base
+PlayerCharacter o-- Item : equipment
+PlayerCharacter ..> Skill
+Skill --> CharacterClass
+Skill --> DamageType
+Item *-- ItemId
+Item *-- ItemLevel
+Item --> ItemSlot
+Item --> ItemQuality
+Item *-- Attributes
+Item *-- GoldAmount
+Attributes ..> CharacterClass : base()
+HealthPoints ..> CharacterState
+Quest <|-- SimpleQuest
+Quest <|-- CompositeQuest
+CompositeQuest o-- Quest : subQuests
+Quest *-- GoldAmount
+Quest --> Item
+
+@enduml

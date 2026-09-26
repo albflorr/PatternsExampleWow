@@ -2,8 +2,8 @@
 
 > **131 clases** modeladas en **8 diagramas** PlantUML, separados por capa arquitectónica.
 >
-> **Cómo verlo:** copia **solo el contenido del bloque** (sin las comillas ```` ```plantuml ````)
-> en <http://www.plantuml.com/plantuml> y pulsa *Submit Diagram*,
+> **Cómo verlo:** copia **solo el contenido del bloque de código** (sin las comillas de apertura
+> ni de cierre) en <http://www.plantuml.com/plantuml> y pulsa *Submit Diagram*,
 > o usa la extensión *PlantUML* de VS Code / IntelliJ / Eclipse.
 >
 > **Validación incluida:** `php validate_plantuml.php Design.md` verifica la sintaxis de los
@@ -13,20 +13,24 @@
 
 ## ⚠️ Si un diagrama no te carga, revisa esto
 
-| Síntoma | Causa | Solución |
+| Síntoma | Causa probable | Solución |
 |---|---|---|
-| Error de sintaxis en PlantUML | Se ha copiado también la prosa o las comillas ``` | Copia **solo** las líneas entre ` ```plantuml ` y ` ``` ` |
-| Se queda cargando o se cuelga | Diagrama demasiado grande | Usa **este fichero**: son 8 diagramas de 15-30 clases, no uno de 131 |
-| Se ve un recuadro rojo con URL corrupta | La URL de PlantUML quedó truncada al copiarla | Vuelve a copiar el bloque completo |
-| No aparece nada | Falta `@startuml` / `@enduml` | Ambos delimitadores ya están en cada bloque |
+| Error de sintaxis en PlantUML | Se ha copiado también la prosa o las comillas de apertura/cierre | Copia **solo** las líneas del bloque, desde `@startuml` hasta `@enduml` |
+| Se queda cargando o se cuelga | Diagrama demasiado grande para la herramienta | Usa **este fichero**: son 8 diagramas de 15-30 clases, no uno de 131 |
+| Recuadro rojo con URL corrupta | La URL de PlantUML quedó truncada al copiarla | Vuelve a copiar el bloque completo desde el principio |
+| No aparece nada | Falta `@startuml` o `@enduml` | Ambos delimitadores ya están en cada bloque |
 
-> **Nota técnica:** se verificó una por una las construcciones que Muscle可能被
-> la causa del fallo original (`+{abstract} metodo()`, `-{static} $campo`,
-> `+metodo() : ?Item`, `+__construct(int ... = 0)`, multiplicidades entrecomilladas
-> `o-- "*" Item`, emojis en `title`) contra el servidor de PlantUML:
-> **todas son sintácticamente válidas**. El problema del diagrama monolítico era
-> su **tamaño** (131 clases / 1700 líneas / 58 KB en un único bloque), no la sintaxis.
-> Aun así, este fichero usa sintaxis simple y conservadora por compatibilidad.
+> **Nota técnica.** Se verificaron una por una contra el servidor oficial de PlantUML las
+> construcciones que Coulderian la causa del fallo del diagrama original:
+> el modificador `abstract` y el de campo estatico dentro del cuerpo de una clase,
+> los tipos anulables con interrogante, los parametros variadicos con puntos suspensivos,
+> las multiplicidades entrecomilladas, los emojis en el titulo, los enums con metodos,
+> los estereotipos y los `skinparam`.
+> **Todas resultaron sintacticamente validas.**
+> El problema del diagrama monolitico era su **tamano**
+> (131 clases, 1700 lineas, 58 KB en un unico bloque), no la sintaxis.
+> Aun asi, este fichero emplea sintaxis simple y conservadora por compatibilidad.
+
 
 
 ---

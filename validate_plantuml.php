@@ -82,10 +82,16 @@ if (($argv[1] ?? '') === '--selftest') {
 $file = $argv[1] ?? 'Design.md';
 $content = file_get_contents($file);
 
-preg_match_all('/```plantuml(.*?)```/s', $content, $m);
-$diagrams = $m[1];
+// Un .md contiene los diagramas entre vallas ```plantuml ... ```
+// Un .puml / .plantuml / classDiagram es un unico diagrama completo
+if (str_contains($content, '```plantuml')) {
+    preg_match_all('/```plantuml(.*?)```/s', $content, $m);
+    $diagrams = $m[1];
+} else {
+    $diagrams = [$content];
+}
 
-printf("Fichero: %s  (%d diagramas)\n\n", $file, count($diagrams));
+printf("Fichero: %s  (%d diagrama%s)\n\n", $file, count($diagrams), count($diagrams) === 1 ? '' : 's');
 
 $errors = 0;
 foreach ($diagrams as $i => $diagram) {
