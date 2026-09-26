@@ -1,1895 +1,1719 @@
-# 📐 Diagrama de Clases — Azeroth Engine
+# 📐 Diagramas de Clases — Azeroth Engine
 
-> Diagrama de clases completo de la solución, generado en **PlantUML**.
-> Para visualizarlo: copiar el bloque de código en [www.plantuml.com/plantuml](http://www.plantuml.com/plantuml)
-> o usar la extensión *PlantUML* de VS Code / IntelliJ.
+> **131 clases** modeladas en **7 diagramas** PlantUML, separados por capa arquitectónica.
+>
+> **Cómo verlo:** copia el bloque en <http://www.plantuml.com/plantuml> y pulsa *Submit Diagram*,
+> o usa la extensión *PlantUML* de VS Code / IntelliJ / Eclipse.
+
+### ⚠️ Nota de sintaxis (si tu PlantUML da error)
+
+Este fichero usa **solo sintaxis básica y universal** de PlantUML. Evita a propósito:
+
+| Construcción evitada | Motivo |
+|---|---|
+| `+{abstract} metodo()` / `-{static} $campo` | Las llaves `{ }` dentro del cuerpo de una clase **rompen el parser** de PlantUML |
+| `+metodo() : ?Item` | El `?` de los tipos anulables produce errores en versiones antiguas |
+| `+__construct(int ... )` | Los parámetros variádicos (`...`) no son portables |
+| `o-- "*" Item` | Las multiplicidades entrecomilladas no están soportadas en todas las versiones |
+| Emojis en `title` | Problemas de codificación en servidores con UTF-8 deshabilitado |
+
+El `?` de nulabilidad y los `static` se documentan en las tablas al final de cada sección.
+
+---
+
+## 0. Resumen de la Arquitectura
 
 ```plantuml
-@startuml AzerothEngine
+@startuml
+title Azeroth Engine - Vista general por capas
 
-' ============================================================
-'  AZEROTH ENGINE - DIAGRAMA DE CLASES COMPLETO
-'  PHP 8.2+ | declare(strict_types=1) | Unidad 1 Diseño y Arquitectura
-' ============================================================
-
-title 🏰 Azeroth Engine — Diagrama de Clases Completo (PHP 8.2+)
-
-skinparam classAttributeIconSize 0
-skinparam classBackgroundColor #FEFEFE
-skinparam classBorderColor #2E5C8A
-skinparam classArrowColor #2E5C8A
-skinparam shadowing false
-skinparam linetype ortho
-hide empty members
-
-' ============================================================
-'  ENUMERATIONS
-' ============================================================
-package "Domain :: Enum" #F3E5F5 {
-
-    enum CharacterClass {
-        Warrior = 'warrior'
-        Mage = 'mage'
-        Hunter = 'hunter'
-        --
-        +getPrimaryAttribute() : string
-        +getBaseHealth() : int
-        +getBaseMana() : int
-    }
-
-    enum Race {
-        Orc = 'orc'
-        Human = 'human'
-        NightElf = 'night_elf'
-        Undead = 'undead'
-        --
-        +getFaction() : string
-        +getRacialBonus() : array
-    }
-
-    enum CharacterState {
-        Normal = 'normal'
-        Stunned = 'stunned'
-        Dead = 'dead'
-        Poisoned = 'poisoned'
-        Frozen = 'frozen'
-        --
-        +canAct() : bool
-        +canMove() : bool
-    }
-
-    enum DamageType {
-        Physical
-        Fire
-        Frost
-        Arcane
-        Shadow
-        Nature
-        Holy
-        --
-        +getResistanceAttribute() : string
-    }
+package "Domain" #E8F5E9 {
+  [Enums]
+  [ValueObjects]
+  [Model / Entities]
+  [Repository]
 }
 
-package "Domain :: ValueObject :: Enums" #F3E5F5 {
-
-    enum ItemSlot {
-        Head
-        Neck
-        Shoulder
-        Back
-        Chest
-        Wrist
-        Hands
-        Waist
-        Legs
-        Feet
-        Finger1
-        Finger2
-        Trinket1
-        Trinket2
-        MainHand
-        OffHand
-        Ranged
-    }
-
-    enum ItemQuality {
-        Poor
-        Common
-        Uncommon
-        Rare
-        Epic
-        Legendary
-        --
-        +getColor() : string
-    }
-
-    enum ArmorType {
-        Cloth
-        Leather
-        Mail
-        Plate
-        Shield
-    }
-
-    enum WeaponType {
-        Sword
-        Axe
-        Mace
-        Dagger
-        Staff
-        Bow
-        Gun
-        Crossbow
-        Wand
-        Fist
-        Polearm
-        Shield
-    }
+package "Creational" #FFF9C4 {
+  [Singleton]
+  [Factory Method]
+  [Abstract Factory]
+  [Builder]
+  [Prototype]
 }
 
-' ============================================================
-'  VALUE OBJECTS  (immutables — readonly class)
-' ============================================================
-package "Domain :: ValueObject" #E8F5E9 {
-
-    class HealthPoints <<readonly>> {
-        +int $current
-        +int $maximum
-        --
-        +__construct(int $current, int $maximum)
-        +full(int $maximum) : self
-        +empty(int $maximum) : self
-        +isFull() : bool
-        +isEmpty() : bool
-        +getPercentage() : float
-        +withCurrent(int) : self
-        +withMaximum(int) : self
-        +heal(int $amount) : self
-        +damage(int $amount) : self
-        +__toString() : string
-    }
-
-    class ManaPoints <<readonly>> {
-        +int $current
-        +int $maximum
-        --
-        +__construct(int $current, int $maximum)
-        +full(int $maximum) : self
-        +empty() : self
-        +isFull() : bool
-        +isEmpty() : bool
-        +getPercentage() : float
-        +withCurrent(int) : self
-        +withMaximum(int) : self
-        +spend(int $amount) : self
-        +restore(int $amount) : self
-        +canAfford(int $cost) : bool
-        +__toString() : string
-    }
-
-    class GoldAmount <<readonly>> {
-        +int $copper
-        --
-        +__construct(int $copper)
-        +fromGold(int) : self
-        +fromSilver(int) : self
-        +fromCopper(int) : self
-        +getGold() : int
-        +getSilver() : int
-        +getCopper() : int
-        +add(GoldAmount) : self
-        +subtract(GoldAmount) : self
-        +canAfford(GoldAmount) : bool
-        +multiply(int $factor) : self
-        +__toString() : string
-    }
-
-    class Attributes <<readonly>> {
-        +int $strength
-        +int $agility
-        +int $intellect
-        +int $stamina
-        +int $spirit
-        +int $armor
-        +int $fireResistance
-        +int $frostResistance
-        +int $arcaneResistance
-        +int $shadowResistance
-        +int $natureResistance
-        +int $holyResistance
-        --
-        +__construct(int ... = 0)
-        +base(CharacterClass) : self
-        +add(Attributes) : self
-        +getPrimaryForClass(CharacterClass) : int
-        +getHealthBonus() : int
-        +getManaBonus() : int
-        +getAttackPower() : int
-        +getSpellPower() : int
-        +getCritChance() : float
-        +__toString() : string
-    }
-
-    class ItemId <<readonly>> {
-        +string $value
-        --
-        +__construct(string $value)
-        +__toString() : string
-    }
-
-    class ItemLevel <<readonly>> {
-        +int $value
-        --
-        +__construct(int $value)
-    }
-
-    class Item <<readonly>> {
-        +ItemId $id
-        +string $name
-        +ItemSlot $slot
-        +ItemQuality $quality
-        +ItemLevel $level
-        +Attributes $attributes
-        +GoldAmount $buyPrice
-        +GoldAmount $sellPrice
-        +bool $isEquippable
-        --
-        +__construct(...)
-    }
+package "Structural" #E1F5FE {
+  [Adapter]
+  [Composite]
+  [Decorator]
+  [Facade]
+  [Proxy]
 }
 
-' ============================================================
-'  DOMAIN MODEL  (Entidades)
-' ============================================================
-package "Domain :: Model" #E3F2FD {
-
-    class PlayerCharacter <<Entity>> {
-        -string $id
-        -string $name
-        -CharacterClass $class
-        -Race $race
-        -int $level
-        -int $experience
-        -HealthPoints $health
-        -ManaPoints $mana
-        -Attributes $baseAttributes
-        -Attributes $equipmentAttributes
-        -array $equipment
-        -GoldAmount $gold
-        -CharacterState $state
-        -array $activeEffects
-        --
-        +__construct(string $id, string $name, CharacterClass, Race, int $level = 1, int $experience = 0, ?GoldAmount, ?CharacterState)
-        +getId() : string
-        +getName() : string
-        +getClass() : CharacterClass
-        +getRace() : Race
-        +getLevel() : int
-        +getExperience() : int
-        +getHealth() : HealthPoints
-        +getMana() : ManaPoints
-        +getGold() : GoldAmount
-        +getState() : CharacterState
-        +getTotalAttributes() : Attributes
-        +getBaseAttributes() : Attributes
-        +getEquipmentAttributes() : Attributes
-        +getEquipment() : array
-        +getEquippedItem(ItemSlot) : ?Item
-        +equipItem(Item) : void
-        +unequipSlot(ItemSlot) : ?Item
-        +addExperience(int) : void
-        +takeDamage(int) : void
-        +heal(int) : void
-        +spendMana(int) : void
-        +restoreMana(int) : void
-        +addGold(GoldAmount) : void
-        +spendGold(GoldAmount) : void
-        +setState(CharacterState) : void
-        +die() : void
-        +revive() : void
-        +canAct() : bool
-        +applyEffect(string, int) : void
-        +removeEffect(string) : void
-        +hasEffect(string) : bool
-        +tickEffects() : void
-        +getAttackPower() : int
-        +getSpellPower() : int
-        +getCritChance() : float
-        +__toString() : string
-    }
-
-    class Skill <<readonly>> {
-        +string $id
-        +string $name
-        +CharacterClass $requiredClass
-        +int $requiredLevel
-        +DamageType $damageType
-        +int $baseDamage
-        +int $manaCost
-        +float $coefficient
-        +int $cooldownSeconds
-        +string $description
-        --
-        +__construct(...)
-        +calculateDamage(PlayerCharacter) : int
-        +canCast(PlayerCharacter) : bool
-        +warriorSkills() : array
-        +mageSkills() : array
-        +hunterSkills() : array
-    }
-
-    abstract class Quest {
-        -string $id
-        -string $title
-        -string $description
-        -int $requiredLevel
-        -GoldAmount $rewardGold
-        -?Item $rewardItem
-        -int $experienceReward
-        -bool $isCompleted
-        --
-        +__construct(string, string, string, int, GoldAmount, int, ?Item)
-        +getId() : string
-        +getTitle() : string
-        +getDescription() : string
-        +getRequiredLevel() : int
-        +getRewardGold() : GoldAmount
-        +getExperienceReward() : int
-        +getRewardItem() : ?Item
-        +isCompleted() : bool
-        +markCompleted() : void
-        +{abstract} canStart(PlayerCharacter) : bool
-        +{abstract} isComplete(PlayerCharacter) : bool
-        +{abstract} getProgress(PlayerCharacter) : string
-    }
-
-    class SimpleQuest {
-        -callable $completionCheck
-        -callable $progressCheck
-    }
-
-    class CompositeQuest {
-        -array $subQuests
-        --
-        +addSubQuest(Quest) : void
-        +getSubQuests() : array
-    }
+package "Behavioral" #FCE4EC {
+  [Strategy]
+  [Observer]
+  [Command]
+  [Template Method]
+  [State]
 }
 
-' ============================================================
-'  REPOSITORIES  (DIP — interfaces + in-memory)
-' ============================================================
-package "Domain :: Repository" #FFF3E0 {
-
-    interface PlayerRepositoryInterface {
-        +save(PlayerCharacter) : void
-        +findById(string) : ?PlayerCharacter
-        +findByName(string) : ?PlayerCharacter
-        +findAll() : array
-        +delete(string) : void
-        +exists(string) : bool
-    }
-
-    class InMemoryPlayerRepository {
-        -array $players
-        --
-        +save(PlayerCharacter) : void
-        +findById(string) : ?PlayerCharacter
-        +findByName(string) : ?PlayerCharacter
-        +findAll() : array
-        +delete(string) : void
-        +exists(string) : bool
-    }
-
-    interface ItemRepositoryInterface {
-        +save(Item) : void
-        +findById(ItemId) : ?Item
-        +findBySlot(ItemSlot) : array
-        +findByLevelRange(int, int) : array
-        +findAll() : array
-    }
-
-    class InMemoryItemRepository {
-        -array $items
-        --
-        +save(Item) : void
-        +findById(ItemId) : ?Item
-        +findBySlot(ItemSlot) : array
-        +findByLevelRange(int, int) : array
-        +findAll() : array
-    }
-
-    interface QuestRepositoryInterface {
-        +save(Quest) : void
-        +findById(string) : ?Quest
-        +findByLevel(int) : array
-        +findAll() : array
-    }
-
-    class InMemoryQuestRepository {
-        -array $quests
-        --
-        +save(Quest) : void
-        +findById(string) : ?Quest
-        +findByLevel(int) : array
-        +findAll() : array
-    }
+package "Context (Bounded Contexts)" #D1C4E9 {
+  [Combat]
+  [Inventory]
+  [Billing]
 }
 
-' ============================================================
-'  CREATIONAL :: Singleton
-' ============================================================
-package "Creational :: Singleton" #FFF9C4 {
+[Domain] ..> [Creational]
+[Domain] ..> [Structural]
+[Domain] ..> [Behavioral]
+[Creational] ..> [Structural]
+[Behavioral] ..> [Structural]
+[Context (Bounded Contexts)] ..> [Behavioral]
+[Context (Bounded Contexts)] ..> [Structural]
+[Context (Bounded Contexts)] ..> [Domain]
+@enduml
+```
 
-    class GameWorld <<Singleton>> {
-        -{static} ?GameWorld $instance
-        -array $onlineCharacters
-        -array $zonePlayers
-        -string $serverTime
-        -int $maxPlayers
-        -bool $maintenanceMode
-        --
-        -__construct()
-        -{static} getInstance() : GameWorld
-        -__clone()
-        +__wakeup()
-        +addPlayer(PlayerCharacter) : void
-        +removePlayer(string) : void
-        +getPlayer(string) : ?PlayerCharacter
-        +getOnlineCount() : int
-        +getPlayersInZone(string) : array
-        +movePlayerToZone(string, string) : void
-        +isMaintenanceMode() : bool
-        +setMaintenanceMode(bool) : void
-        +getServerTime() : string
-        +broadcastMessage(string) : void
-        +getFactionBalance() : array
-    }
+---
 
-    class EngineConfig <<Singleton>> {
-        -{static} ?EngineConfig $instance
-        -array $config
-        --
-        -__construct()
-        -{static} getInstance() : EngineConfig
-        +get(string, mixed) : mixed
-        +set(string, mixed) : void
-        +getAll() : array
-        +getMaxLevel() : int
-        +isPvpEnabled() : bool
-        +getExperienceRate() : float
-    }
+## 1. Dominio — Enums, Value Objects y Entidades
+
+```plantuml
+@startuml
+title 1. Domain - Enums, ValueObjects y Model
+
+package "Enum" #F3E5F5 {
+
+  enum CharacterClass {
+    Warrior
+    Mage
+    Hunter
+  }
+
+  enum Race {
+    Orc
+    Human
+    NightElf
+    Undead
+  }
+
+  enum CharacterState {
+    Normal
+    Stunned
+    Dead
+    Poisoned
+    Frozen
+  }
+
+  enum DamageType {
+    Physical
+    Fire
+    Frost
+    Arcane
+    Shadow
+    Nature
+    Holy
+  }
+
+  enum ItemSlot {
+    Head
+    Chest
+    Legs
+    Feet
+    Hands
+    MainHand
+    OffHand
+  }
+
+  enum ItemQuality {
+    Poor
+    Common
+    Uncommon
+    Rare
+    Epic
+    Legendary
+  }
+
+  enum ArmorType {
+    Cloth
+    Leather
+    Mail
+    Plate
+    Shield
+  }
+
+  enum WeaponType {
+    Sword
+    Axe
+    Mace
+    Dagger
+    Staff
+    Bow
+    Wand
+    Polearm
+  }
 }
 
-' ============================================================
-'  CREATIONAL :: Factory Method
-' ============================================================
-package "Creational :: Factory (Factory Method)" #FFF9C4 {
+package "ValueObject (readonly, inmutables)" #E8F5E9 {
 
-    interface CharacterFactoryInterface {
-        +createCharacter(string $name, Race, CharacterClass) : PlayerCharacter
-    }
+  class HealthPoints <<readonly>> {
+    +current : int
+    +maximum : int
+    --
+    +full(maximum) : HealthPoints
+    +empty(maximum) : HealthPoints
+    +isFull() : bool
+    +isEmpty() : bool
+    +getPercentage() : float
+    +heal(amount) : HealthPoints
+    +damage(amount) : HealthPoints
+    +withCurrent(new) : HealthPoints
+    +withMaximum(new) : HealthPoints
+  }
 
-    abstract class CharacterFactory {
-        -int $characterCounter
-        --
-        +createCharacter(string $name, Race, CharacterClass) : PlayerCharacter
-        -{abstract} validateRaceClassCombination(Race, CharacterClass) : void
-        -{abstract} createCharacterInstance(string, string, Race, CharacterClass) : PlayerCharacter
-        -{abstract} initializeCharacter(PlayerCharacter) : void
-        -generateCharacterId(Race, CharacterClass) : string
-    }
+  class ManaPoints <<readonly>> {
+    +current : int
+    +maximum : int
+    --
+    +full(maximum) : ManaPoints
+    +empty() : ManaPoints
+    +spend(amount) : ManaPoints
+    +restore(amount) : ManaPoints
+    +canAfford(cost) : bool
+    +isFull() : bool
+    +isEmpty() : bool
+    +getPercentage() : float
+  }
 
-    class HordeCharacterFactory {
-        --
-        +validateRaceClassCombination(Race, CharacterClass) : void
-        +createCharacterInstance(string, string, Race, CharacterClass) : PlayerCharacter
-        +initializeCharacter(PlayerCharacter) : void
-    }
+  class GoldAmount <<readonly>> {
+    +copper : int
+    --
+    +fromGold(g) : GoldAmount
+    +fromSilver(s) : GoldAmount
+    +fromCopper(c) : GoldAmount
+    +add(other) : GoldAmount
+    +subtract(other) : GoldAmount
+    +multiply(factor) : GoldAmount
+    +canAfford(cost) : bool
+    +getGold() : int
+    +getSilver() : int
+    +getCopper() : int
+  }
 
-    class AllianceCharacterFactory {
-        --
-        +validateRaceClassCombination(Race, CharacterClass) : void
-        +createCharacterInstance(string, string, Race, CharacterClass) : PlayerCharacter
-        +initializeCharacter(PlayerCharacter) : void
-    }
+  class Attributes <<readonly>> {
+    +strength : int
+    +agility : int
+    +intellect : int
+    +stamina : int
+    +spirit : int
+    +armor : int
+    +fireResistance : int
+    +frostResistance : int
+    +arcaneResistance : int
+    +shadowResistance : int
+    --
+    +base(class) : Attributes
+    +add(other) : Attributes
+    +getAttackPower() : int
+    +getSpellPower() : int
+    +getHealthBonus() : int
+    +getManaBonus() : int
+    +getCritChance() : float
+  }
 
-    class CharacterFactoryRegistry {
-        -{static} array $factories
-        --
-        +{static} register(string, CharacterFactoryInterface) : void
-        +{static} getFactory(string) : ?CharacterFactoryInterface
-        +{static} createCharacter(string, string, Race, CharacterClass) : PlayerCharacter
-    }
+  class ItemId <<readonly>> {
+    +value : string
+  }
+
+  class ItemLevel <<readonly>> {
+    +value : int
+  }
+
+  class Item <<readonly>> {
+    +id : ItemId
+    +name : string
+    +slot : ItemSlot
+    +quality : ItemQuality
+    +level : ItemLevel
+    +attributes : Attributes
+    +buyPrice : GoldAmount
+    +sellPrice : GoldAmount
+    +isEquippable : bool
+  }
 }
 
-' ============================================================
-'  CREATIONAL :: Abstract Factory
-' ============================================================
-package "Creational :: Factory (Abstract Factory)" #FFF9C4 {
+package "Model (Entidades)" #E3F2FD {
 
-    interface EquipmentFactoryInterface {
-        +createHelmet(int $level) : Item
-        +createChest(int $level) : Item
-        +createLegs(int $level) : Item
-        +createBoots(int $level) : Item
-        +createGloves(int $level) : Item
-        +createMainHand(int $level) : Item
-        +createOffHand(int $level) : Item
-    }
+  class PlayerCharacter <<Entity>> {
+    -id : string
+    -name : string
+    -class : CharacterClass
+    -race : Race
+    -level : int
+    -experience : int
+    -health : HealthPoints
+    -mana : ManaPoints
+    -gold : GoldAmount
+    -state : CharacterState
+    -baseAttributes : Attributes
+    -equipmentAttributes : Attributes
+    -equipment : array
+    -activeEffects : array
+    --
+    +getId() : string
+    +getName() : string
+    +getClass() : CharacterClass
+    +getRace() : Race
+    +getLevel() : int
+    +getHealth() : HealthPoints
+    +getMana() : ManaPoints
+    +getGold() : GoldAmount
+    +getState() : CharacterState
+    +getTotalAttributes() : Attributes
+    +equipItem(item) : void
+    +unequipSlot(slot) : Item
+    +addExperience(amount) : void
+    +takeDamage(amount) : void
+    +heal(amount) : void
+    +spendMana(amount) : void
+    +restoreMana(amount) : void
+    +addGold(amount) : void
+    +spendGold(amount) : void
+    +setState(state) : void
+    +die() : void
+    +revive() : void
+    +canAct() : bool
+    +applyEffect(name, duration) : void
+    +removeEffect(name) : void
+    +hasEffect(name) : bool
+    +tickEffects() : void
+    +getAttackPower() : int
+    +getSpellPower() : int
+    +getCritChance() : float
+  }
 
-    abstract class EquipmentFactory {
-        -string $faction
-        -array $prefixes
-        -array $materials
-        --
-        +__construct(string $faction)
-        -createArmor(string, ItemSlot, int, ArmorType, Attributes) : Item
-        -createWeapon(string, ItemSlot, int, WeaponType, Attributes) : Item
-        -determineQuality(int) : ItemQuality
-        -calculateBuyPrice(int, ItemQuality) : GoldAmount
-        -calculateSellPrice(int, ItemQuality) : GoldAmount
-    }
+  class Skill <<readonly>> {
+    +id : string
+    +name : string
+    +requiredClass : CharacterClass
+    +requiredLevel : int
+    +damageType : DamageType
+    +baseDamage : int
+    +manaCost : int
+    +coefficient : float
+    +cooldownSeconds : int
+    +description : string
+    --
+    +calculateDamage(caster) : int
+    +canCast(caster) : bool
+  }
 
-    class HordeEquipmentFactory {
-        --
-        +createHelmet(int) : Item
-        +createChest(int) : Item
-        +createLegs(int) : Item
-        +createBoots(int) : Item
-        +createGloves(int) : Item
-        +createMainHand(int) : Item
-        +createOffHand(int) : Item
-    }
+  abstract class Quest {
+    -id : string
+    -title : string
+    -description : string
+    -requiredLevel : int
+    -rewardGold : GoldAmount
+    -experienceReward : int
+    -rewardItem : Item
+    -isCompleted : bool
+    --
+    +getId() : string
+    +getTitle() : string
+    +getRewardGold() : GoldAmount
+    +getExperienceReward() : int
+    +isCompleted() : bool
+    +markCompleted() : void
+    +canStart(character) : bool
+    +isComplete(character) : bool
+    +getProgress(character) : string
+  }
 
-    class AllianceEquipmentFactory {
-        --
-        +createHelmet(int) : Item
-        +createChest(int) : Item
-        +createLegs(int) : Item
-        +createBoots(int) : Item
-        +createGloves(int) : Item
-        +createMainHand(int) : Item
-        +createOffHand(int) : Item
-    }
+  class SimpleQuest {
+    -completionCheck : Closure
+    -progressCheck : Closure
+  }
 
-    class EquipmentFactoryRegistry {
-        -{static} array $factories
-        --
-        +{static} register(string, EquipmentFactoryInterface) : void
-        +{static} getFactory(string) : ?EquipmentFactoryInterface
-        +{static} createFullSet(string, int) : array
-    }
+  class CompositeQuest {
+    -subQuests : array
+    --
+    +addSubQuest(quest) : void
+    +getSubQuests() : array
+  }
 }
 
-' ============================================================
-'  CREATIONAL :: Builder
-' ============================================================
-package "Creational :: Builder" #FFF9C4 {
-
-    class CharacterBuilder {
-        -string $name
-        -?Race $race
-        -?CharacterClass $class
-        -int $level
-        -?GoldAmount $gold
-        -array $skills
-        -array $equipment
-        -array $talents
-        -Attributes $customAttributes
-        --
-        +__construct()
-        +setName(string) : self
-        +setRace(Race) : self
-        +setClass(CharacterClass) : self
-        +setLevel(int) : self
-        +setGold(GoldAmount) : self
-        +addSkill(Skill) : self
-        +addSkills(array) : self
-        +addTalent(string, int) : self
-        +addCustomAttributes(Attributes) : self
-        +equipItem(Item) : self
-        +equipFullSet(string, int) : self
-        +build() : PlayerCharacter
-        -validate() : void
-        -generateId() : string
-    }
-
-    class CharacterDirector {
-        --
-        +createStarterCharacter(CharacterBuilder, string, Race, CharacterClass) : PlayerCharacter
-        +createVeteranCharacter(CharacterBuilder, string, Race, CharacterClass, int) : PlayerCharacter
-        +createTwinkCharacter(CharacterBuilder, string, Race, CharacterClass, int) : PlayerCharacter
-        -getStarterSkills(CharacterClass) : array
-        -getAllSkillsForLevel(CharacterClass, int) : array
-    }
-}
-
-' ============================================================
-'  CREATIONAL :: Prototype
-' ============================================================
-package "Creational :: Prototype" #FFF9C4 {
-
-    interface PrototypeInterface {
-        +clone() : self
-    }
-
-    abstract class MonsterPrototype {
-        -string $id
-        -string $name
-        -int $level
-        -Race $race
-        -HealthPoints $health
-        -ManaPoints $mana
-        -Attributes $attributes
-        -int $experienceReward
-        -GoldAmount $goldDrop
-        -array $lootTable
-        -DamageType $damageType
-        -int $baseDamage
-        -float $attackSpeed
-        -array $abilities
-        --
-        +__construct(string, string, int, Race, HealthPoints, ManaPoints, Attributes, int, GoldAmount, DamageType, int, float)
-        +clone() : self
-        -generateUniqueId() : string
-        +getId() : string
-        +getName() : string
-        +getLevel() : int
-        +setLevel(int) : void
-        +setName(string) : void
-        +setBaseDamage(int) : void
-        +setHealth(HealthPoints) : void
-        +getRace() : Race
-        +getHealth() : HealthPoints
-        +getMana() : ManaPoints
-        +getAttributes() : Attributes
-        +getExperienceReward() : int
-        +getGoldDrop() : GoldAmount
-        +getLootTable() : array
-        +getDamageType() : DamageType
-        +getBaseDamage() : int
-        +getAttackSpeed() : float
-        +getAbilities() : array
-        +addLoot(string, float, int, int) : void
-        +addAbility(string, array) : void
-        +takeDamage(int) : void
-        +isDead() : bool
-        +__toString() : string
-    }
-
-    class BeastPrototype
-    class HumanoidPrototype
-    class UndeadPrototype
-    class DragonkinPrototype
-
-    class MonsterPrototypeManager {
-        -array $prototypes
-        --
-        +__construct()
-        +registerPrototype(MonsterPrototype) : void
-        +spawnMonster(string, array) : MonsterPrototype
-        +spawnHorde(string, int, array) : array
-        +getPrototype(string) : ?MonsterPrototype
-        +getAvailablePrototypes() : array
-    }
-}
-
-' ============================================================
-'  STRUCTURAL :: Adapter
-' ============================================================
-package "Structural :: Adapter" #E1F5FE {
-
-    interface DamageCalculatorInterface {
-        +calculateDamage(PlayerCharacter, PlayerCharacter, DamageType) : int
-        +calculateHealing(PlayerCharacter, PlayerCharacter) : int
-    }
-
-    class LegacyDamageCalculator <<legacy>> {
-        +computePhysicalDamage(array, array) : int
-        +computeSpellDamage(array, array, string) : int
-        +computeHealing(array) : int
-    }
-
-    class LegacyDamageCalculatorAdapter <<Adapter>> {
-        -LegacyDamageCalculator $legacyCalculator
-        --
-        +__construct(?LegacyDamageCalculator)
-        +calculateDamage(PlayerCharacter, PlayerCharacter, DamageType) : int
-        +calculateHealing(PlayerCharacter, PlayerCharacter) : int
-        -extractStats(PlayerCharacter) : array
-    }
-
-    class ModernDamageCalculator {
-        --
-        +calculateDamage(PlayerCharacter, PlayerCharacter, DamageType) : int
-        +calculateHealing(PlayerCharacter, PlayerCharacter) : int
-        -calculateMitigation(int, int, int) : float
-        -calculateCritMultiplier(PlayerCharacter) : float
-    }
-}
-
-' ============================================================
-'  STRUCTURAL :: Composite
-' ============================================================
-package "Structural :: Composite" #E1F5FE {
-
-    interface QuestComponentInterface {
-        +getId() : string
-        +getTitle() : string
-        +getDescription() : string
-        +canStart(PlayerCharacter) : bool
-        +isComplete(PlayerCharacter) : bool
-        +getProgress(PlayerCharacter) : string
-        +getRewardGold() : GoldAmount
-        +getExperienceReward() : int
-        +getRewardItem() : ?Item
-        +markCompleted() : void
-        +isCompleted() : bool
-    }
-
-    abstract class QuestComponent {
-        -string $id
-        -string $title
-        -string $description
-        -GoldAmount $rewardGold
-        -int $experienceReward
-        -?Item $rewardItem
-        -bool $isCompleted
-        --
-        +__construct(string, string, string, GoldAmount, int, ?Item)
-        +getId() : string
-        +getTitle() : string
-        +getDescription() : string
-        +getRewardGold() : GoldAmount
-        +getExperienceReward() : int
-        +getRewardItem() : ?Item
-        +markCompleted() : void
-        +isCompleted() : bool
-    }
-
-    class QuestObjective <<Leaf>> {
-        -int $requiredLevel
-        -Closure $completionCheck
-        -Closure $progressCheck
-        --
-        +canStart(PlayerCharacter) : bool
-        +isComplete(PlayerCharacter) : bool
-        +getProgress(PlayerCharacter) : string
-    }
-
-    class QuestComposite <<Composite>> {
-        -array $children
-        --
-        +add(QuestComponentInterface) : void
-        +remove(QuestComponentInterface) : void
-        +getChildren() : array
-        +canStart(PlayerCharacter) : bool
-        +isComplete(PlayerCharacter) : bool
-        +getProgress(PlayerCharacter) : string
-    }
-
-    class QuestLog {
-        -array $quests
-        --
-        +addQuest(QuestComponentInterface) : void
-        +removeQuest(string) : void
-        +getQuest(string) : ?QuestComponentInterface
-        +getActiveQuests() : array
-        +getCompletedQuests() : array
-        +getAvailableQuests(PlayerCharacter) : array
-        +getQuestProgress(PlayerCharacter) : string
-        +completeQuest(string, PlayerCharacter) : bool
-    }
-}
-
-' ============================================================
-'  STRUCTURAL :: Decorator
-' ============================================================
-package "Structural :: Decorator" #E1F5FE {
-
-    interface WeaponInterface {
-        +getName() : string
-        +getBaseDamage() : int
-        +getDamageType() : DamageType
-        +getAttributes() : Attributes
-        +getAttackSpeed() : float
-        +calculateDPS(PlayerCharacter) : float
-    }
-
-    class BaseWeapon implements WeaponInterface {
-        -Item $item
-        --
-        +__construct(Item $item)
-        +getName() : string
-        +getBaseDamage() : int
-        +getDamageType() : DamageType
-        +getAttributes() : Attributes
-        +getAttackSpeed() : float
-        +calculateDPS(PlayerCharacter) : float
-    }
-
-    abstract class WeaponDecorator implements WeaponInterface {
-        -WeaponInterface $weapon
-        --
-        +__construct(WeaponInterface $weapon)
-        +getName() : string
-        +getBaseDamage() : int
-        +getDamageType() : DamageType
-        +getAttributes() : Attributes
-        +getAttackSpeed() : float
-        +calculateDPS(PlayerCharacter) : float
-    }
-
-    class FireEnchantment {
-        -int $fireDamage
-        -float $procChance
-        --
-        +__construct(WeaponInterface, int = 20, float = 0.15)
-        +getName() : string
-        +getDamageType() : DamageType
-        +getAttributes() : Attributes
-        +calculateDPS(PlayerCharacter) : float
-        +getFireDamage() : int
-        +getProcChance() : float
-    }
-
-    class FrostEnchantment {
-        -int $frostDamage
-        -float $slowChance
-        -float $slowPercent
-        --
-        +__construct(WeaponInterface, int = 15, float = 0.2, float = 0.5)
-        +getFrostDamage() : int
-        +getSlowChance() : float
-    }
-
-    class ArcaneEnchantment {
-        -int $arcaneDamage
-        -float $manaBurnChance
-        -int $manaBurnAmount
-        --
-        +__construct(WeaponInterface, int = 25, float = 0.1, int = 30)
-    }
-
-    class LifestealEnchantment {
-        -float $lifestealPercent
-        --
-        +__construct(WeaponInterface, float = 0.1)
-        +getHealAmount(int $damageDealt) : int
-    }
-
-    class CrusaderEnchantment {
-        -int $strengthBonus
-        -float $procChance
-        -int $duration
-        --
-        +__construct(WeaponInterface, int = 100, float = 0.05, int = 15)
-    }
-
-    class EnchantmentFactory {
-        --
-        +{static} applyEnchantment(WeaponInterface, string, array) : WeaponInterface
-        +{static} applyMultiple(WeaponInterface, array) : WeaponInterface
-    }
-}
-
-' ============================================================
-'  STRUCTURAL :: Facade
-' ============================================================
-package "Structural :: Facade" #E1F5FE {
-
-    class GameCombatFacade <<Facade>> {
-        -DamageCalculatorInterface $damageCalculator
-        -CombatNotifier $notifier
-        -DamageCalculationContext $damageContext
-        -array $combatLog
-        -int $round
-        --
-        +__construct(?DamageCalculatorInterface)
-        +startCombat(PlayerCharacter, PlayerCharacter) : CombatResult
-        +executeSkill(PlayerCharacter, PlayerCharacter, Skill) : SkillResult
-        +autoAttack(PlayerCharacter, PlayerCharacter) : SkillResult
-        +heal(PlayerCharacter, PlayerCharacter, int) : HealResult
-        +getCombatLog() : array
-        +addCombatObserver(callable) : void
-        -validateCombatants(PlayerCharacter, PlayerCharacter) : void
-        -processRound(PlayerCharacter, PlayerCharacter, CharacterStateContext, CharacterStateContext) : void
-        -isCombatOver(PlayerCharacter, PlayerCharacter) : bool
-        -determineResult(PlayerCharacter, PlayerCharacter) : CombatResult
-        -log(string) : void
-    }
-
-    class CombatResult {
-        +{static} ATTACKER_WINS
-        +{static} DEFENDER_WINS
-        +{static} DRAW
-        +string $outcome
-        +PlayerCharacter $attacker
-        +PlayerCharacter $defender
-        +int $rounds
-        +array $log
-        --
-        +getWinner() : ?PlayerCharacter
-        +__toString() : string
-    }
-
-    class SkillResult {
-        +bool $success
-        +int $damage
-        +string $message
-    }
-
-    class HealResult {
-        +int $amount
-        +string $message
-    }
-}
-
-' ============================================================
-'  STRUCTURAL :: Proxy
-' ============================================================
-package "Structural :: Proxy" #E1F5FE {
-
-    interface GameServiceInterface {
-        +enterZone(PlayerCharacter, string) : bool
-        +purchaseItem(PlayerCharacter, Item) : bool
-        +accessBank(PlayerCharacter) : array
-        +joinBattleground(PlayerCharacter) : bool
-        +useAuctionHouse(PlayerCharacter) : bool
-        +sendMail(PlayerCharacter, PlayerCharacter, string, string, ?Item, GoldAmount) : bool
-    }
-
-    class GameService <<RealSubject>> {
-        +enterZone(PlayerCharacter, string) : bool
-        +purchaseItem(PlayerCharacter, Item) : bool
-        +accessBank(PlayerCharacter) : array
-        +joinBattleground(PlayerCharacter) : bool
-        +useAuctionHouse(PlayerCharacter) : bool
-        +sendMail(PlayerCharacter, PlayerCharacter, string, string, ?Item, GoldAmount) : bool
-    }
-
-    enum AccountTier {
-        Free
-        Premium
-        Veteran
-        GM
-    }
-
-    class AccountSecurityProxy <<Proxy>> {
-        -GameServiceInterface $realService
-        -array $premiumZones
-        -array $veteranZones
-        --
-        +__construct(?GameServiceInterface)
-        +enterZone(PlayerCharacter, string) : bool
-        +purchaseItem(PlayerCharacter, Item) : bool
-        +accessBank(PlayerCharacter) : array
-        +joinBattleground(PlayerCharacter) : bool
-        +useAuctionHouse(PlayerCharacter) : bool
-        +sendMail(PlayerCharacter, PlayerCharacter, string, string, ?Item, GoldAmount) : bool
-        -getAccountTier(PlayerCharacter) : AccountTier
-        -hasAccess(AccountTier, AccountTier) : bool
-    }
-
-    class LoggingProxy <<Proxy>> {
-        -GameServiceInterface $realService
-        --
-        +__construct(GameServiceInterface)
-        -log(string, array) : void
-    }
-}
-
-' ============================================================
-'  BEHAVIORAL :: Strategy
-' ============================================================
-package "Behavioral :: Strategy" #FCE4EC {
-
-    interface DamageStrategyInterface <<Strategy>> {
-        +calculate(PlayerCharacter, PlayerCharacter, int, DamageType) : int
-        +getName() : string
-    }
-
-    class PhysicalDamageStrategy {
-        -calculateArmorMitigation(int, int, int) : float
-        -calculateCrit(PlayerCharacter) : float
-        --
-        +calculate(PlayerCharacter, PlayerCharacter, int, DamageType) : int
-        +getName() : string
-    }
-
-    class SpellDamageStrategy {
-        -calculateResistanceMitigation(int, int, int) : float
-        -calculateSpellCrit(PlayerCharacter) : float
-        --
-        +calculate(PlayerCharacter, PlayerCharacter, int, DamageType) : int
-        +getName() : string
-    }
-
-    class DotDamageStrategy {
-        -calculateResistanceMitigation(int, int, int) : float
-        --
-        +calculate(PlayerCharacter, PlayerCharacter, int, DamageType) : int
-        +getName() : string
-    }
-
-    class DamageCalculationContext <<Context>> {
-        -DamageStrategyInterface $strategy
-        --
-        +__construct(?DamageStrategyInterface)
-        +setStrategy(DamageStrategyInterface) : void
-        +calculateDamage(PlayerCharacter, PlayerCharacter, DamageType, int) : int
-        +getCurrentStrategyName() : string
-        -selectStrategy(DamageType) : DamageStrategyInterface
-    }
-
-    interface StorageStrategyInterface <<Strategy>> {
-        +save(string, mixed) : bool
-        +load(string) : mixed
-        +delete(string) : bool
-        +exists(string) : bool
-        +getName() : string
-    }
-
-    class MemoryStorageStrategy {
-        -array $storage
-        --
-        +save(string, mixed) : bool
-        +load(string) : mixed
-        +delete(string) : bool
-        +exists(string) : bool
-        +getName() : string
-    }
-
-    class FileStorageStrategy {
-        -string $directory
-        --
-        +__construct(string $directory = 'data')
-        +save(string, mixed) : bool
-        +load(string) : mixed
-        +delete(string) : bool
-        +exists(string) : bool
-        +getName() : string
-        -sanitizeKey(string) : string
-    }
-
-    class DatabaseStorageStrategy {
-        -PDO $pdo
-        --
-        +__construct(PDO)
-        -createTable() : void
-        +save(string, mixed) : bool
-        +load(string) : mixed
-        +delete(string) : bool
-        +exists(string) : bool
-        +getName() : string
-    }
-
-    class StorageContext <<Context>> {
-        -StorageStrategyInterface $strategy
-        --
-        +__construct(?StorageStrategyInterface)
-        +setStrategy(StorageStrategyInterface) : void
-        +save(string, mixed) : bool
-        +load(string) : mixed
-        +delete(string) : bool
-        +exists(string) : bool
-        +getStrategyName() : string
-    }
-}
-
-' ============================================================
-'  BEHAVIORAL :: Observer
-' ============================================================
-package "Behavioral :: Observer" #FCE4EC {
-
-    interface ObserverInterface {
-        +update(string $event, array $data) : void
-    }
-
-    interface ObservableInterface {
-        +addObserver(ObserverInterface|callable) : void
-        +removeObserver(ObserverInterface|callable) : void
-        +notify(string, array) : void
-    }
-
-    class CombatNotifier implements ObservableInterface <<Subject>> {
-        -array $observers
-        --
-        +addObserver(ObserverInterface|callable) : void
-        +removeObserver(ObserverInterface|callable) : void
-        +notify(string, array) : void
-        +notifyCombatStart(PlayerCharacter, PlayerCharacter) : void
-        +notifyCombatEnd(PlayerCharacter, PlayerCharacter, CombatResult) : void
-        +notifyDamageDealt(PlayerCharacter, PlayerCharacter, int, DamageType, string) : void
-        +notifyHealing(PlayerCharacter, PlayerCharacter, int) : void
-        +notifyLevelUp(PlayerCharacter, int) : void
-        +notifySkillCast(PlayerCharacter, Skill, PlayerCharacter) : void
-        +notifyItemLooted(PlayerCharacter, string, int) : void
-        +notifyQuestCompleted(PlayerCharacter, string) : void
-    }
-
-    class ConsoleLogger implements ObserverInterface {
-        +update(string, array) : void
-    }
-
-    class FileLogger implements ObserverInterface {
-        -string $logFile
-        --
-        +__construct(string $logFile = 'combat.log')
-        +update(string, array) : void
-    }
-
-    class UIUpdater implements ObserverInterface {
-        -array $uiState
-        --
-        +update(string, array) : void
-        +getUIState(string) : array
-        +getAllUIState() : array
-    }
-
-    class CharacterObserver implements ObserverInterface {
-        -PlayerCharacter $character
-        --
-        +__construct(PlayerCharacter)
-        +update(string, array) : void
-    }
-}
-
-' ============================================================
-'  BEHAVIORAL :: Command
-' ============================================================
-package "Behavioral :: Command" #FCE4EC {
-
-    interface CommandInterface <<Command>> {
-        +execute() : CommandResult
-        +undo() : CommandResult
-        +getName() : string
-        +canExecute() : bool
-    }
-
-    class CommandResult {
-        +bool $success
-        +string $message
-        +mixed $data
-        --
-        +__construct(bool, string, mixed = null)
-    }
-
-    abstract class BaseCommand {
-        -PlayerCharacter $caster
-        -PlayerCharacter $target
-        -Skill $skill
-        -DamageCalculationContext $damageContext
-        -?CommandResult $lastResult
-        --
-        +__construct(PlayerCharacter, PlayerCharacter, Skill, DamageCalculationContext)
-        +getName() : string
-        +canExecute() : bool
-        +{abstract} execute() : CommandResult
-        +{abstract} undo() : CommandResult
-    }
-
-    class CastSpellCommand {
-        -int $damageDealt
-        -int $manaSpent
-        -int $targetPreviousHealth
-        -int $casterPreviousMana
-        --
-        +execute() : CommandResult
-        +undo() : CommandResult
-    }
-
-    class HealCommand {
-        -int $healAmount
-        -int $targetPreviousHealth
-        -int $casterPreviousMana
-        --
-        +execute() : CommandResult
-        +undo() : CommandResult
-    }
-
-    class BuffCommand {
-        -string $buffName
-        -int $duration
-        -array $statModifiers
-        --
-        +__construct(PlayerCharacter, PlayerCharacter, Skill, DamageCalculationContext, string, int, array)
-        +execute() : CommandResult
-        +undo() : CommandResult
-    }
-
-    class CommandQueue <<Invoker>> {
-        -array $queue
-        -array $history
-        -int $maxHistorySize
-        --
-        +enqueue(CommandInterface) : void
-        +executeNext() : ?CommandResult
-        +executeAll() : array
-        +undoLast() : ?CommandResult
-        +getQueueSize() : int
-        +getHistorySize() : int
-        +clear() : void
-    }
-
-    class MacroCommand {
-        -array $commands
-        -string $name
-        --
-        +__construct(string $name)
-        +addCommand(CommandInterface) : void
-        +execute() : CommandResult
-        +undo() : CommandResult
-        +getName() : string
-        +canExecute() : bool
-    }
-}
-
-' ============================================================
-'  BEHAVIORAL :: Template Method
-' ============================================================
-package "Behavioral :: TemplateMethod" #FCE4EC {
-
-    abstract class QuestCompletionTemplate <<TemplateMethod>> {
-        --
-        +{final} completeQuest(PlayerCharacter) : QuestCompletionResult
-        -onPreCompletion(PlayerCharacter) : void
-        -{abstract} validateCompletion(PlayerCharacter) : bool
-        -{abstract} calculateRewards(PlayerCharacter) : QuestRewards
-        -grantRewards(PlayerCharacter, QuestRewards) : void
-        -onPostCompletion(PlayerCharacter, QuestRewards) : void
-        -{abstract} canStart(PlayerCharacter) : bool
-    }
-
-    class QuestRewards {
-        +int $experience
-        +GoldAmount $gold
-        +array $items
-        +array $reputation
-        --
-        +__construct(int = 0, ?GoldAmount, array = [], array = [])
-        +add(QuestRewards) : self
-    }
-
-    class QuestCompletionResult {
-        +bool $success
-        +string $message
-        +?QuestRewards $rewards
-        --
-        +__construct(bool, string, ?QuestRewards = null)
-    }
-
-    class SimpleQuestCompletion {
-        -string $questId
-        -string $questTitle
-        -int $requiredLevel
-        -int $experienceReward
-        -GoldAmount $goldReward
-        -?Item $itemReward
-        -Closure $objectiveCheck
-        --
-        +__construct(string, string, int, int, GoldAmount, Closure, ?Item)
-        -validateCompletion(PlayerCharacter) : bool
-        -calculateRewards(PlayerCharacter) : QuestRewards
-        -canStart(PlayerCharacter) : bool
-        -onPostCompletion(PlayerCharacter, QuestRewards) : void
-    }
-
-    class ChainQuestCompletion {
-        -array $chain
-        -int $currentStep
-        --
-        +addStep(QuestCompletionTemplate) : void
-        -validateCompletion(PlayerCharacter) : bool
-        -calculateRewards(PlayerCharacter) : QuestRewards
-        -canStart(PlayerCharacter) : bool
-        -onPostCompletion(PlayerCharacter, QuestRewards) : void
-    }
-
-    class DailyQuestCompletion {
-        -string $questId
-        -string $title
-        -int $requiredLevel
-        -int $baseExperience
-        -GoldAmount $baseGold
-        -Closure $objectiveCheck
-        -array $completedToday
-        --
-        +__construct(string, string, int, int, GoldAmount, Closure)
-        -validateCompletion(PlayerCharacter) : bool
-        -calculateRewards(PlayerCharacter) : QuestRewards
-        -canStart(PlayerCharacter) : bool
-        -onPostCompletion(PlayerCharacter, QuestRewards) : void
-    }
-}
-
-' ============================================================
-'  BEHAVIORAL :: State
-' ============================================================
-package "Behavioral :: State" #FCE4EC {
-
-    interface StateInterface <<State>> {
-        +enter(PlayerCharacter) : void
-        +exit(PlayerCharacter) : void
-        +update(PlayerCharacter) : void
-        +onDamageTaken(PlayerCharacter, int) : void
-        +onHeal(PlayerCharacter, int) : void
-        +canAttack() : bool
-        +canMove() : bool
-        +canCast() : bool
-        +getState() : CharacterState
-    }
-
-    abstract class BaseState {
-        -CharacterState $state
-        --
-        +__construct(CharacterState $state)
-        +enter(PlayerCharacter) : void
-        +exit(PlayerCharacter) : void
-        +update(PlayerCharacter) : void
-        +onDamageTaken(PlayerCharacter, int) : void
-        +onHeal(PlayerCharacter, int) : void
-        +canAttack() : bool
-        +canMove() : bool
-        +canCast() : bool
-        +getState() : CharacterState
-    }
-
-    class NormalState {
-        --
-        +canAttack() : bool
-        +canMove() : bool
-        +canCast() : bool
-        +onDamageTaken(PlayerCharacter, int) : void
-    }
-
-    class StunnedState {
-        -int $remainingDuration
-        --
-        +__construct(int $duration = 3)
-        +enter(PlayerCharacter) : void
-        +update(PlayerCharacter) : void
-    }
-
-    class DeadState {
-        -int $releaseTimer
-        --
-        +enter(PlayerCharacter) : void
-        +update(PlayerCharacter) : void
-    }
-
-    class PoisonedState {
-        -int $tickDamage
-        -int $remainingDuration
-        -int $tickInterval
-        --
-        +__construct(int $duration = 15, int $tickDamage = 10)
-        +update(PlayerCharacter) : void
-        +onHeal(PlayerCharacter, int) : void
-    }
-
-    class FrozenState {
-        -int $remainingDuration
-        --
-        +__construct(int $duration = 5)
-        +update(PlayerCharacter) : void
-        +onDamageTaken(PlayerCharacter, int) : void
-    }
-
-    class CharacterStateContext <<Context>> {
-        -PlayerCharacter $character
-        -StateInterface $currentState
-        --
-        +__construct(PlayerCharacter)
-        +transitionTo(CharacterState, array) : void
-        +tick() : void
-        +onDamageTaken(int) : void
-        +onHeal(int) : void
-        +canAttack() : bool
-        +canMove() : bool
-        +canCast() : bool
-        +getCurrentState() : CharacterState
-        +__toString() : string
-        -createState(CharacterState, array) : ?StateInterface
-    }
-}
-
-' ============================================================
-'  BOUNDED CONTEXT :: COMBAT
-' ============================================================
-package "Context :: Combat" #D1C4E9 {
-
-    class CombatService {
-        -GameCombatFacade $combatFacade
-        -DamageCalculationContext $damageContext
-        --
-        +__construct()
-        +initiateCombat(PlayerCharacter, PlayerCharacter) : CombatResult
-        +castSpell(PlayerCharacter, PlayerCharacter, Skill) : SkillResult
-        +autoAttack(PlayerCharacter, PlayerCharacter) : SkillResult
-        +heal(PlayerCharacter, PlayerCharacter, int) : HealResult
-        +calculateDamage(PlayerCharacter, PlayerCharacter, DamageType, int) : int
-        +setDamageStrategy(string) : void
-    }
-
-    interface CombatRepositoryInterface {
-        +saveCombatLog(string, array) : void
-        +getCombatLog(string) : ?array
-    }
-
-    class InMemoryCombatRepository {
-        -array $logs
-        --
-        +saveCombatLog(string, array) : void
-        +getCombatLog(string) : ?array
-    }
-}
-
-' ============================================================
-'  BOUNDED CONTEXT :: INVENTORY
-' ============================================================
-package "Context :: Inventory" #D1C4E9 {
-
-    class InventoryAggregate <<Aggregate Root>> {
-        -string $characterId
-        -array $equippedItems
-        -array $bagItems
-        -int $bagCapacity
-        -int $version
-        --
-        +__construct(string $characterId)
-        +getCharacterId() : string
-        +getEquippedItems() : array
-        +getBagItems() : array
-        +getBagCapacity() : int
-        +getBagUsedSlots() : int
-        +getBagFreeSlots() : int
-        +getVersion() : int
-        +equipItem(Item) : bool
-        +unequipItem(ItemSlot) : ?Item
-        +addToBag(Item) : bool
-        +removeFromBag(ItemId) : ?Item
-        +moveToBag(ItemSlot) : bool
-        +expandBag(int) : void
-        +getTotalWeight() : int
-    }
-
-    interface InventoryRepositoryInterface {
-        +save(InventoryAggregate) : void
-        +findByCharacterId(string) : ?InventoryAggregate
-        +delete(string) : void
-    }
-
-    class InMemoryInventoryRepository {
-        -array $inventories
-        --
-        +save(InventoryAggregate) : void
-        +findByCharacterId(string) : ?InventoryAggregate
-        +delete(string) : void
-    }
-
-    class InventoryService {
-        -InventoryRepositoryInterface $repository
-        --
-        +__construct(InventoryRepositoryInterface)
-        +getInventory(string) : InventoryAggregate
-        +equipItem(string, Item) : bool
-        +unequipItem(string, ItemSlot) : ?Item
-        +addItemToBag(string, Item) : bool
-        +removeItemFromBag(string, ItemId) : ?Item
-        +expandBag(string, int) : void
-    }
-}
-
-' ============================================================
-'  BOUNDED CONTEXT :: BILLING
-' ============================================================
-package "Context :: Billing" #D1C4E9 {
-
-    interface PaymentMethodInterface {
-        +charge(GoldAmount) : PaymentResult
-        +refund(GoldAmount) : PaymentResult
-        +getName() : string
-    }
-
-    class PaymentResult {
-        +bool $success
-        +string $transactionId
-        +string $message
-        --
-        +__construct(bool, string, string)
-    }
-
-    class InGameGoldPayment implements PaymentMethodInterface {
-        -PlayerCharacter $character
-        --
-        +__construct(PlayerCharacter)
-        +charge(GoldAmount) : PaymentResult
-        +refund(GoldAmount) : PaymentResult
-        +getName() : string
-    }
-
-    class RealMoneyPayment implements PaymentMethodInterface {
-        -string $accountId
-        -float $balance
-        --
-        +__construct(string, float = 0.0)
-        +charge(GoldAmount) : PaymentResult
-        +refund(GoldAmount) : PaymentResult
-        +getName() : string
-        +getBalance() : float
-        +addFunds(float) : void
-    }
-
-    class Subscription <<Entity>> {
-        -string $accountId
-        -string $tier
-        -DateTimeImmutable $startDate
-        -DateTimeImmutable $endDate
-        -bool $autoRenew
-        -string $paymentMethodId
-        --
-        +__construct(string, string, DateTimeImmutable, DateTimeImmutable, bool, string)
-        +getAccountId() : string
-        +getTier() : string
-        +getStartDate() : DateTimeImmutable
-        +getEndDate() : DateTimeImmutable
-        +isAutoRenew() : bool
-        +isActive() : bool
-        +getDaysRemaining() : int
-        +renew(int $months = 1) : void
-        +cancel() : void
-        +getPaymentMethodId() : string
-    }
-
-    interface SubscriptionRepositoryInterface {
-        +findByAccountId(string) : ?Subscription
-        +save(Subscription) : void
-    }
-
-    class InMemorySubscriptionRepository {
-        -array $subscriptions
-        --
-        +findByAccountId(string) : ?Subscription
-        +save(Subscription) : void
-    }
-
-    class BillingService {
-        -SubscriptionRepositoryInterface $subscriptionRepository
-        --
-        +__construct(SubscriptionRepositoryInterface)
-        +purchaseSubscription(string, string, int, PaymentMethodInterface) : PaymentResult
-        +cancelSubscription(string) : bool
-        +getSubscriptionStatus(string) : array
-        +processRenewals(PaymentMethodInterface) : array
-    }
-
-    class AuctionListing <<Entity>> {
-        +string $id
-        +string $sellerId
-        +string $sellerName
-        +Item $item
-        +GoldAmount $startingBid
-        +GoldAmount $currentBid
-        +?GoldAmount $buyoutPrice
-        +DateTimeImmutable $startTime
-        +DateTimeImmutable $endTime
-        +GoldAmount $deposit
-        +?string $currentBidderId
-        +?string $currentBidderName
-    }
-
-    class BidResult {
-        +bool $success
-        +string $transactionId
-        +string $message
-        --
-        +__construct(bool, string, string)
-    }
-
-    class AuctionHouseService {
-        -array $listings
-        -float $commissionRate
-        --
-        +createListing(PlayerCharacter, Item, GoldAmount, GoldAmount, int) : AuctionListing
-        +placeBid(string, PlayerCharacter, GoldAmount) : BidResult
-        +buyout(string, PlayerCharacter) : BidResult
-        +getActiveListings() : array
-        +getListing(string) : ?AuctionListing
-        -finalizeSale(AuctionListing, PlayerCharacter, GoldAmount) : void
-    }
-}
-
-' ============================================================
-'  RELACIONES
-' ============================================================
-
-' --- Herencia: Enums ---
-CharacterClass ..> DamageType
-Race ..> CharacterState
-
-' --- Value Objects composed within Item ---
-Item *-- ItemId
-Item *-- ItemSlot
-Item *-- ItemQuality
-Item *-- ItemLevel
-Item *-- Attributes
-Item *-- GoldAmount
-
-' --- PlayerCharacter composition ---
-PlayerCharacter *-- HealthPoints
-PlayerCharacter *-- ManaPoints
-PlayerCharacter *-- GoldAmount
-PlayerCharacter *-- Attributes : base + equipment
-PlayerCharacter o-- "0..17" Item : equipment
 PlayerCharacter --> CharacterClass
 PlayerCharacter --> Race
 PlayerCharacter --> CharacterState
+PlayerCharacter *-- HealthPoints
+PlayerCharacter *-- ManaPoints
+PlayerCharacter *-- GoldAmount
+PlayerCharacter *-- Attributes : base
+PlayerCharacter o-- Item : equipment
+PlayerCharacter ..> Skill
 
-' --- Skill ---
 Skill --> CharacterClass
 Skill --> DamageType
 
-' --- Quest model ---
+Item *-- ItemId
+Item *-- ItemLevel
+Item --> ItemSlot
+Item --> ItemQuality
+Item *-- Attributes
+Item *-- GoldAmount
+
+Attributes ..> CharacterClass : base()
+HealthPoints ..> CharacterState
+
 Quest <|-- SimpleQuest
 Quest <|-- CompositeQuest
-CompositeQuest o-- "*" Quest : subQuests
+CompositeQuest o-- Quest : subQuests
+Quest *-- GoldAmount
+Quest --> Item
 
-' --- Repositories (DIP) ---
+@enduml
+```
+
+> **Nulabilidad en el código real:** `PlayerCharacter.getEquippedItem(): ?Item`,
+> `Quest.rewardItem: ?Item`, `Item` sin restricción, etc.
+> Se omiten aquí para máxima compatibilidad.
+
+---
+
+## 2. Repositorios (DIP)
+
+```plantuml
+@startuml
+title 2. Domain Repository - Patron Repository (DIP)
+
+package "Domain :: Repository" #FFF3E0 {
+
+  interface PlayerRepositoryInterface {
+    +save(character) : void
+    +findById(id) : PlayerCharacter
+    +findByName(name) : PlayerCharacter
+    +findAll() : array
+    +delete(id) : void
+    +exists(id) : bool
+  }
+
+  class InMemoryPlayerRepository {
+    -players : array
+    --
+    +save(character) : void
+    +findById(id) : PlayerCharacter
+    +findByName(name) : PlayerCharacter
+    +findAll() : array
+    +delete(id) : void
+    +exists(id) : bool
+  }
+
+  interface ItemRepositoryInterface {
+    +save(item) : void
+    +findById(id) : Item
+    +findBySlot(slot) : array
+    +findByLevelRange(min, max) : array
+    +findAll() : array
+  }
+
+  class InMemoryItemRepository {
+    -items : array
+    --
+    +save(item) : void
+    +findById(id) : Item
+    +findBySlot(slot) : array
+    +findByLevelRange(min, max) : array
+    +findAll() : array
+  }
+
+  interface QuestRepositoryInterface {
+    +save(quest) : void
+    +findById(id) : Quest
+    +findByLevel(level) : array
+    +findAll() : array
+  }
+
+  class InMemoryQuestRepository {
+    -quests : array
+    --
+    +save(quest) : void
+    +findById(id) : Quest
+    +findByLevel(level) : array
+    +findAll() : array
+  }
+}
+
 PlayerRepositoryInterface <|.. InMemoryPlayerRepository
 ItemRepositoryInterface <|.. InMemoryItemRepository
 QuestRepositoryInterface <|.. InMemoryQuestRepository
+
 InMemoryPlayerRepository ..> PlayerCharacter
 InMemoryItemRepository ..> Item
 InMemoryQuestRepository ..> Quest
 
-' --- Singleton ---
-GameWorld o-- "*" PlayerCharacter : onlineCharacters
-CharacterFactory ..> GameWorld : registra jugador
-CharacterBuilder ..> GameWorld : registra jugador
-
-' --- Factory Method ---
-CharacterFactoryInterface <|.. CharacterFactory
-CharacterFactory <|-- HordeCharacterFactory
-CharacterFactory <|-- AllianceCharacterFactory
-CharacterFactory ..> PlayerCharacter : crea
-HordeCharacterFactory ..> Race : valida
-AllianceCharacterFactory ..> Race : valida
-CharacterFactoryRegistry o-- "*" CharacterFactoryInterface
-
-' --- Abstract Factory ---
-EquipmentFactoryInterface <|.. EquipmentFactory
-EquipmentFactory <|-- HordeEquipmentFactory
-EquipmentFactory <|-- AllianceEquipmentFactory
-EquipmentFactory ..> Item : crea
-EquipmentFactory ..> Attributes
-HordeEquipmentFactory ..> ArmorType : Plate / Axe
-AllianceEquipmentFactory ..> WeaponType : Sword / Shield
-EquipmentFactoryRegistry o-- "*" EquipmentFactoryInterface
-CharacterBuilder ..> EquipmentFactoryRegistry : equipFullSet
-
-' --- Builder ---
-CharacterDirector ..> CharacterBuilder : construye
-CharacterBuilder ..> PlayerCharacter : build()
-CharacterBuilder o-- "*" Skill
-CharacterBuilder o-- "*" Item
-
-' --- Prototype ---
-PrototypeInterface <|.. MonsterPrototype
-MonsterPrototype <|-- BeastPrototype
-MonsterPrototype <|-- HumanoidPrototype
-MonsterPrototype <|-- UndeadPrototype
-MonsterPrototype <|-- DragonkinPrototype
-MonsterPrototypeManager o-- "*" MonsterPrototype : prototypes
-MonsterPrototypeManager ..> MonsterPrototype : clone()
-MonsterPrototype --> Race
-MonsterPrototype --> DamageType
-MonsterPrototype *-- HealthPoints
-MonsterPrototype *-- ManaPoints
-MonsterPrototype *-- GoldAmount
-
-' --- Adapter (LSP: ambos son DamageCalculatorInterface) ---
-DamageCalculatorInterface <|.. LegacyDamageCalculatorAdapter
-DamageCalculatorInterface <|.. ModernDamageCalculator
-LegacyDamageCalculatorAdapter o-- LegacyDamageCalculator : adapta
-LegacyDamageCalculatorAdapter ..> PlayerCharacter : extrae stats
-
-' --- Composite ---
-QuestComponentInterface <|.. QuestComponent
-QuestComponent <|-- QuestObjective
-QuestComponent <|-- QuestComposite
-QuestComposite o-- "*" QuestComponentInterface : children
-QuestLog o-- "*" QuestComponentInterface
-QuestObjective ..> PlayerCharacter
-
-' --- Decorator ---
-WeaponInterface <|.. BaseWeapon
-WeaponInterface <|.. WeaponDecorator
-BaseWeapon o-- Item
-WeaponDecorator o-- WeaponInterface : componente envuelto
-WeaponDecorator <|-- FireEnchantment
-WeaponDecorator <|-- FrostEnchantment
-WeaponDecorator <|-- ArcaneEnchantment
-WeaponDecorator <|-- LifestealEnchantment
-WeaponDecorator <|-- CrusaderEnchantment
-EnchantmentFactory ..> WeaponInterface : crea decorators
-FireEnchantment ..> Attributes
-CrusaderEnchantment ..> Attributes
-
-' --- Facade (oculta subsistemas) ---
-GameCombatFacade *-- DamageCalculatorInterface : inyecta (DIP)
-GameCombatFacade *-- CombatNotifier
-GameCombatFacade *-- DamageCalculationContext
-GameCombatFacade ..> CombatResult : devuelve
-GameCombatFacade ..> SkillResult : devuelve
-GameCombatFacade ..> HealResult : devuelve
-GameCombatFacade ..> CharacterStateContext : orquestra
-GameCombatFacade ..> Skill
-GameCombatFacade ..> PlayerCharacter
-CombatNotifier ..> CombatResult : notifica
-
-' --- Proxy ---
-GameServiceInterface <|.. GameService
-GameServiceInterface <|.. AccountSecurityProxy
-GameServiceInterface <|.. LoggingProxy
-AccountSecurityProxy o-- GameServiceInterface : realService
-AccountSecurityProxy --> AccountTier
-LoggingProxy o-- GameServiceInterface : realService
-AccountSecurityProxy ..> PlayerCharacter
-AccountSecurityProxy ..> Item
-
-' --- Strategy: Damage ---
-DamageStrategyInterface <|.. PhysicalDamageStrategy
-DamageStrategyInterface <|.. SpellDamageStrategy
-DamageStrategyInterface <|.. DotDamageStrategy
-DamageCalculationContext o-- DamageStrategyInterface : strategy
-DamageCalculationContext ..> PhysicalDamageStrategy : selectStrategy()
-DamageCalculationContext ..> SpellDamageStrategy : selectStrategy()
-PhysicalDamageStrategy ..> PlayerCharacter
-SpellDamageStrategy ..> PlayerCharacter
-DotDamageStrategy ..> PlayerCharacter
-
-' --- Strategy: Storage ---
-StorageStrategyInterface <|.. MemoryStorageStrategy
-StorageStrategyInterface <|.. FileStorageStrategy
-StorageStrategyInterface <|.. DatabaseStorageStrategy
-StorageContext o-- StorageStrategyInterface : strategy
-FileStorageStrategy ..> mixed : serializa JSON
-DatabaseStorageStrategy ..> PDO : persiste SQL
-
-' --- Observer ---
-ObserverInterface <|.. ConsoleLogger
-ObserverInterface <|.. FileLogger
-ObserverInterface <|.. UIUpdater
-ObserverInterface <|.. CharacterObserver
-ObservableInterface <|.. CombatNotifier
-CombatNotifier o-- "*" ObserverInterface : observers
-CombatNotifier ..> PlayerCharacter
-CombatNotifier ..> Skill
-CharacterObserver o-- PlayerCharacter
-ConsoleLogger ..> UIUpdater
-
-' --- Command ---
-CommandInterface <|.. BaseCommand
-CommandInterface <|.. MacroCommand
-BaseCommand <|-- CastSpellCommand
-BaseCommand <|-- HealCommand
-BaseCommand <|-- BuffCommand
-BaseCommand o-- PlayerCharacter : caster
-BaseCommand o-- PlayerCharacter : target
-BaseCommand o-- Skill
-BaseCommand *-- DamageCalculationContext
-CommandQueue o-- "*" CommandInterface : queue + history
-MacroCommand o-- "*" CommandInterface : commands
-
-' --- Template Method ---
-QuestCompletionTemplate <|-- SimpleQuestCompletion
-QuestCompletionTemplate <|-- ChainQuestCompletion
-QuestCompletionTemplate <|-- DailyQuestCompletion
-QuestCompletionTemplate ..> QuestCompletionResult : devuelve
-QuestCompletionTemplate ..> QuestRewards
-QuestCompletionTemplate ..> PlayerCharacter
-QuestRewards *-- GoldAmount
-SimpleQuestCompletion o-- QuestRewards
-ChainQuestCompletion o-- "*" QuestCompletionTemplate : chain
-DailyQuestCompletion ..> DateTimeImmutable
-
-' --- State ---
-StateInterface <|.. BaseState
-BaseState <|-- NormalState
-BaseState <|-- StunnedState
-BaseState <|-- DeadState
-BaseState <|-- PoisonedState
-BaseState <|-- FrozenState
-CharacterStateContext o-- StateInterface : currentState
-CharacterStateContext o-- PlayerCharacter
-CharacterStateContext ..> NormalState : createState()
-CharacterStateContext ..> StunnedState : createState()
-CharacterStateContext ..> DeadState : createState()
-CharacterStateContext ..> PoisonedState : createState()
-CharacterStateContext ..> FrozenState : createState()
-BaseState --> CharacterState
-
-' --- Bounded Context: Combat ---
-CombatService *-- GameCombatFacade
-CombatService *-- DamageCalculationContext
-CombatRepositoryInterface <|.. InMemoryCombatRepository
-CombatService ..> PlayerCharacter
-CombatService ..> Skill
-CombatService ..> DamageType
-CombatService ..> CombatResult
-
-' --- Bounded Context: Inventory ---
-InventoryRepositoryInterface <|.. InMemoryInventoryRepository
-InMemoryInventoryRepository o-- "*" InventoryAggregate
-InventoryService *-- InventoryRepositoryInterface : inyecta (DIP)
-InventoryService ..> InventoryAggregate : devuelve
-InventoryAggregate o-- "*" Item : equippedItems
-InventoryAggregate o-- "*" Item : bagItems
-InventoryAggregate ..> ItemSlot
-InventoryAggregate ..> ItemId
-
-' --- Bounded Context: Billing ---
-PaymentMethodInterface <|.. InGameGoldPayment
-PaymentMethodInterface <|.. RealMoneyPayment
-PaymentResult ..> PaymentMethodInterface : devuelto por
-SubscriptionRepositoryInterface <|.. InMemorySubscriptionRepository
-InMemorySubscriptionRepository o-- "*" Subscription
-BillingService *-- SubscriptionRepositoryInterface : inyecta (DIP)
-BillingService ..> PaymentMethodInterface
-BillingService ..> Subscription
-BillingService ..> PaymentResult
-InGameGoldPayment o-- PlayerCharacter
-RealMoneyPayment ..> GoldAmount
-AuctionHouseService o-- "*" AuctionListing
-AuctionHouseService ..> AuctionListing : crea
-AuctionHouseService ..> BidResult : devuelve
-AuctionListing o-- Item
-AuctionListing o-- GoldAmount
-AuctionHouseService o-- PlayerCharacter
+note right of PlayerRepositoryInterface
+  Principio de Inversoin de Dependencias:
+  el dominio define la interface,
+  la infraestructura la implementa.
+end note
 
 @enduml
 ```
 
 ---
 
-## 📖 Notas de Lectura del Diagrama
+## 3. Patrones Creacionales
 
-### Leyenda de Estereotipos
+```plantuml
+@startuml
+title 3. Creational - Singleton, Factory Method, Abstract Factory, Builder, Prototype
 
-| Estereotipo | Significado |
-|-------------|-------------|
+package "Singleton" #FFF9C4 {
+
+  class GameWorld <<Singleton>> {
+    -instance : GameWorld
+    -onlineCharacters : array
+    -zonePlayers : array
+    -serverTime : string
+    -maxPlayers : int
+    -maintenanceMode : bool
+    --
+    +getInstance() : GameWorld
+    +addPlayer(character) : void
+    +removePlayer(id) : void
+    +getPlayer(id) : PlayerCharacter
+    +getOnlineCount() : int
+    +getPlayersInZone(zone) : array
+    +movePlayerToZone(id, zone) : void
+    +isMaintenanceMode() : bool
+    +setMaintenanceMode(mode) : void
+    +getServerTime() : string
+    +broadcastMessage(message) : void
+    +getFactionBalance() : array
+  }
+
+  class EngineConfig <<Singleton>> {
+    -instance : EngineConfig
+    -config : array
+    --
+    +getInstance() : EngineConfig
+    +get(key) : mixed
+    +set(key, value) : void
+    +getAll() : array
+    +getMaxLevel() : int
+    +isPvpEnabled() : bool
+    +getExperienceRate() : float
+  }
+}
+
+package "Factory Method" #FFF9C4 {
+
+  interface CharacterFactoryInterface {
+    +createCharacter(name, race, class) : PlayerCharacter
+  }
+
+  abstract class CharacterFactory {
+    -characterCounter : int
+    --
+    +createCharacter(name, race, class) : PlayerCharacter
+    +validateRaceClassCombination(race, class) : void
+    +createCharacterInstance(id, name, race, class) : PlayerCharacter
+    +initializeCharacter(character) : void
+    -generateCharacterId(race, class) : string
+  }
+
+  class HordeCharacterFactory
+  class AllianceCharacterFactory
+
+  class CharacterFactoryRegistry {
+    -factories : array
+    --
+    +register(faction, factory) : void
+    +getFactory(faction) : CharacterFactoryInterface
+    +createCharacter(faction, name, race, class) : PlayerCharacter
+  }
+}
+
+package "Abstract Factory" #FFF9C4 {
+
+  interface EquipmentFactoryInterface {
+    +createHelmet(level) : Item
+    +createChest(level) : Item
+    +createLegs(level) : Item
+    +createBoots(level) : Item
+    +createGloves(level) : Item
+    +createMainHand(level) : Item
+    +createOffHand(level) : Item
+  }
+
+  abstract class EquipmentFactory {
+    -faction : string
+    -prefixes : array
+    -materials : array
+    --
+    +createArmor(name, slot, level, armorType, attributes) : Item
+    +createWeapon(name, slot, level, weaponType, attributes) : Item
+    -determineQuality(level) : ItemQuality
+    -calculateBuyPrice(level, quality) : GoldAmount
+    -calculateSellPrice(level, quality) : GoldAmount
+  }
+
+  class HordeEquipmentFactory
+  class AllianceEquipmentFactory
+
+  class EquipmentFactoryRegistry {
+    -factories : array
+    --
+    +register(faction, factory) : void
+    +getFactory(faction) : EquipmentFactoryInterface
+    +createFullSet(faction, level) : array
+  }
+}
+
+package "Builder" #FFF9C4 {
+
+  class CharacterBuilder {
+    -name : string
+    -race : Race
+    -class : CharacterClass
+    -level : int
+    -gold : GoldAmount
+    -skills : array
+    -equipment : array
+    -talents : array
+    -customAttributes : Attributes
+    --
+    +setName(name) : CharacterBuilder
+    +setRace(race) : CharacterBuilder
+    +setClass(class) : CharacterBuilder
+    +setLevel(level) : CharacterBuilder
+    +setGold(gold) : CharacterBuilder
+    +addSkill(skill) : CharacterBuilder
+    +addSkills(skills) : CharacterBuilder
+    +addTalent(id, rank) : CharacterBuilder
+    +addCustomAttributes(attributes) : CharacterBuilder
+    +equipItem(item) : CharacterBuilder
+    +equipFullSet(faction, level) : CharacterBuilder
+    +build() : PlayerCharacter
+    -validate() : void
+    -generateId() : string
+  }
+
+  class CharacterDirector {
+    +createStarterCharacter(builder, name, race, class) : PlayerCharacter
+    +createVeteranCharacter(builder, name, race, class, level) : PlayerCharacter
+    +createTwinkCharacter(builder, name, race, class, level) : PlayerCharacter
+  }
+}
+
+package "Prototype" #FFF9C4 {
+
+  interface PrototypeInterface {
+    +clone() : self
+  }
+
+  abstract class MonsterPrototype {
+    -id : string
+    -name : string
+    -level : int
+    -race : Race
+    -health : HealthPoints
+    -mana : ManaPoints
+    -attributes : Attributes
+    -experienceReward : int
+    -goldDrop : GoldAmount
+    -lootTable : array
+    -damageType : DamageType
+    -baseDamage : int
+    -attackSpeed : float
+    -abilities : array
+    --
+    +clone() : MonsterPrototype
+    +getId() : string
+    +getName() : string
+    +getLevel() : int
+    +setLevel(level) : void
+    +setName(name) : void
+    +setHealth(health) : void
+    +setBaseDamage(damage) : void
+    +getHealth() : HealthPoints
+    +getDamageType() : DamageType
+    +getBaseDamage() : int
+    +getAbilities() : array
+    +addLoot(itemId, chance, min, max) : void
+    +addAbility(id, params) : void
+    +takeDamage(amount) : void
+    +isDead() : bool
+  }
+
+  class BeastPrototype
+  class HumanoidPrototype
+  class UndeadPrototype
+  class DragonkinPrototype
+
+  class MonsterPrototypeManager {
+    -prototypes : array
+    --
+    +registerPrototype(prototype) : void
+    +spawnMonster(prototypeId, overrides) : MonsterPrototype
+    +spawnHorde(prototypeId, count, overrides) : array
+    +getPrototype(prototypeId) : MonsterPrototype
+    +getAvailablePrototypes() : array
+  }
+}
+
+CharacterFactoryInterface <|.. CharacterFactory
+CharacterFactory <|-- HordeCharacterFactory
+CharacterFactory <|-- AllianceCharacterFactory
+CharacterFactory ..> PlayerCharacter
+CharacterFactoryRegistry o-- CharacterFactoryInterface
+
+EquipmentFactoryInterface <|.. EquipmentFactory
+EquipmentFactory <|-- HordeEquipmentFactory
+EquipmentFactory <|-- AllianceEquipmentFactory
+EquipmentFactory ..> Item
+HordeEquipmentFactory ..> ArmorType
+HordeEquipmentFactory ..> WeaponType
+EquipmentFactoryRegistry o-- EquipmentFactoryInterface
+
+CharacterDirector ..> CharacterBuilder
+CharacterBuilder ..> PlayerCharacter
+CharacterBuilder ..> EquipmentFactoryRegistry
+CharacterBuilder o-- Skill
+CharacterBuilder o-- Item
+
+PrototypeInterface <|.. MonsterPrototype
+MonsterPrototype <|-- BeastPrototype
+MonsterPrototype <|-- HumanoidPrototype
+MonsterPrototype <|-- UndeadPrototype
+MonsterPrototype <|-- DragonkinPrototype
+MonsterPrototypeManager o-- MonsterPrototype
+MonsterPrototypeManager ..> MonsterPrototype : clone()
+MonsterPrototype ..> HealthPoints
+MonsterPrototype ..> ManaPoints
+MonsterPrototype ..> GoldAmount
+MonsterPrototype ..> DamageType
+MonsterPrototype ..> Race
+
+GameWorld o-- PlayerCharacter
+CharacterFactory ..> GameWorld
+CharacterBuilder ..> GameWorld
+
+@enduml
+```
+
+---
+
+## 4. Patrones Estructurales
+
+```plantuml
+@startuml
+title 4. Structural - Adapter, Composite, Decorator, Facade, Proxy
+
+package "Adapter" #E1F5FE {
+
+  interface DamageCalculatorInterface {
+    +calculateDamage(attacker, defender, type) : int
+    +calculateHealing(healer, target) : int
+  }
+
+  class LegacyDamageCalculator <<Legacy>> {
+    +computePhysicalDamage(attackerStats, defenderStats) : int
+    +computeSpellDamage(attackerStats, defenderStats, school) : int
+    +computeHealing(healerStats) : int
+  }
+
+  class LegacyDamageCalculatorAdapter <<Adapter>> {
+    -legacyCalculator : LegacyDamageCalculator
+    --
+    +calculateDamage(attacker, defender, type) : int
+    +calculateHealing(healer, target) : int
+    -extractStats(character) : array
+  }
+
+  class ModernDamageCalculator {
+    -calculateMitigation(resistance, level, diff) : float
+    -calculateCritMultiplier(character) : float
+    --
+    +calculateDamage(attacker, defender, type) : int
+    +calculateHealing(healer, target) : int
+  }
+}
+
+package "Composite" #E1F5FE {
+
+  interface QuestComponentInterface {
+    +getId() : string
+    +getTitle() : string
+    +getDescription() : string
+    +canStart(character) : bool
+    +isComplete(character) : bool
+    +getProgress(character) : string
+    +getRewardGold() : GoldAmount
+    +getExperienceReward() : int
+    +markCompleted() : void
+    +isCompleted() : bool
+  }
+
+  abstract class QuestComponent {
+    -id : string
+    -title : string
+    -description : string
+    -rewardGold : GoldAmount
+    -experienceReward : int
+    -rewardItem : Item
+    -isCompleted : bool
+    --
+    +getId() : string
+    +getTitle() : string
+    +getRewardGold() : GoldAmount
+    +markCompleted() : void
+    +isCompleted() : bool
+  }
+
+  class QuestObjective <<Leaf>> {
+    -requiredLevel : int
+    -completionCheck : Closure
+    -progressCheck : Closure
+    --
+    +canStart(character) : bool
+    +isComplete(character) : bool
+    +getProgress(character) : string
+  }
+
+  class QuestComposite <<Composite>> {
+    -children : array
+    --
+    +add(component) : void
+    +remove(component) : void
+    +getChildren() : array
+    +canStart(character) : bool
+    +isComplete(character) : bool
+    +getProgress(character) : string
+  }
+
+  class QuestLog {
+    -quests : array
+    --
+    +addQuest(quest) : void
+    +removeQuest(id) : void
+    +getQuest(id) : QuestComponentInterface
+    +getActiveQuests() : array
+    +getCompletedQuests() : array
+    +getAvailableQuests(character) : array
+    +getQuestProgress(character) : string
+    +completeQuest(id, character) : bool
+  }
+}
+
+package "Decorator" #E1F5FE {
+
+  interface WeaponInterface {
+    +getName() : string
+    +getBaseDamage() : int
+    +getDamageType() : DamageType
+    +getAttributes() : Attributes
+    +getAttackSpeed() : float
+    +calculateDPS(character) : float
+  }
+
+  class BaseWeapon {
+    -item : Item
+    --
+    +getName() : string
+    +getBaseDamage() : int
+    +getDamageType() : DamageType
+    +getAttributes() : Attributes
+    +getAttackSpeed() : float
+    +calculateDPS(character) : float
+  }
+
+  abstract class WeaponDecorator {
+    -weapon : WeaponInterface
+    --
+    +getName() : string
+    +getBaseDamage() : int
+    +getDamageType() : DamageType
+    +getAttributes() : Attributes
+    +getAttackSpeed() : float
+    +calculateDPS(character) : float
+  }
+
+  class FireEnchantment {
+    -fireDamage : int
+    -procChance : float
+    --
+    +getFireDamage() : int
+    +getProcChance() : float
+  }
+
+  class FrostEnchantment {
+    -frostDamage : int
+    -slowChance : float
+    -slowPercent : float
+  }
+
+  class ArcaneEnchantment {
+    -arcaneDamage : int
+    -manaBurnChance : float
+    -manaBurnAmount : int
+  }
+
+  class LifestealEnchantment {
+    -lifestealPercent : float
+    --
+    +getHealAmount(damageDealt) : int
+  }
+
+  class CrusaderEnchantment {
+    -strengthBonus : int
+    -procChance : float
+    -duration : int
+  }
+
+  class EnchantmentFactory {
+    +applyEnchantment(weapon, type, params) : WeaponInterface
+    +applyMultiple(weapon, enchantments) : WeaponInterface
+  }
+}
+
+package "Facade" #E1F5FE {
+
+  class GameCombatFacade <<Facade>> {
+    -damageCalculator : DamageCalculatorInterface
+    -notifier : CombatNotifier
+    -damageContext : DamageCalculationContext
+    -combatLog : array
+    -round : int
+    --
+    +startCombat(attacker, defender) : CombatResult
+    +executeSkill(caster, target, skill) : SkillResult
+    +autoAttack(attacker, defender) : SkillResult
+    +heal(healer, target, amount) : HealResult
+    +getCombatLog() : array
+    +addCombatObserver(observer) : void
+    -validateCombatants(attacker, defender) : void
+    -processRound(attacker, defender, stateA, stateB) : void
+    -isCombatOver(attacker, defender) : bool
+    -determineResult(attacker, defender) : CombatResult
+  }
+
+  class CombatResult {
+    +ATTACKER_WINS : string
+    +DEFENDER_WINS : string
+    +DRAW : string
+    +outcome : string
+    +attacker : PlayerCharacter
+    +defender : PlayerCharacter
+    +rounds : int
+    +log : array
+    --
+    +getWinner() : PlayerCharacter
+  }
+
+  class SkillResult {
+    +success : bool
+    +damage : int
+    +message : string
+  }
+
+  class HealResult {
+    +amount : int
+    +message : string
+  }
+}
+
+package "Proxy" #E1F5FE {
+
+  interface GameServiceInterface {
+    +enterZone(character, zoneId) : bool
+    +purchaseItem(character, item) : bool
+    +accessBank(character) : array
+    +joinBattleground(character) : bool
+    +useAuctionHouse(character) : bool
+    +sendMail(from, to, subject, body, item, cod) : bool
+  }
+
+  class GameService <<RealSubject>> {
+    +enterZone(character, zoneId) : bool
+    +purchaseItem(character, item) : bool
+    +accessBank(character) : array
+    +joinBattleground(character) : bool
+    +useAuctionHouse(character) : bool
+    +sendMail(from, to, subject, body, item, cod) : bool
+  }
+
+  enum AccountTier {
+    Free
+    Premium
+    Veteran
+    GM
+  }
+
+  class AccountSecurityProxy <<Proxy>> {
+    -realService : GameServiceInterface
+    -premiumZones : array
+    -veteranZones : array
+    --
+    +enterZone(character, zoneId) : bool
+    +purchaseItem(character, item) : bool
+    +accessBank(character) : array
+    +joinBattleground(character) : bool
+    +useAuctionHouse(character) : bool
+    +sendMail(from, to, subject, body, item, cod) : bool
+    -getAccountTier(character) : AccountTier
+    -hasAccess(current, required) : bool
+  }
+
+  class LoggingProxy <<Proxy>> {
+    -realService : GameServiceInterface
+    --
+    -log(method, params) : void
+  }
+}
+
+DamageCalculatorInterface <|.. LegacyDamageCalculatorAdapter
+DamageCalculatorInterface <|.. ModernDamageCalculator
+LegacyDamageCalculatorAdapter o-- LegacyDamageCalculator
+
+QuestComponentInterface <|.. QuestComponent
+QuestComponent <|-- QuestObjective
+QuestComponent <|-- QuestComposite
+QuestComposite o-- QuestComponentInterface
+QuestLog o-- QuestComponentInterface
+
+WeaponInterface <|.. BaseWeapon
+WeaponInterface <|.. WeaponDecorator
+BaseWeapon o-- Item
+WeaponDecorator o-- WeaponInterface
+WeaponDecorator <|-- FireEnchantment
+WeaponDecorator <|-- FrostEnchantment
+WeaponDecorator <|-- ArcaneEnchantment
+WeaponDecorator <|-- LifestealEnchantment
+WeaponDecorator <|-- CrusaderEnchantment
+EnchantmentFactory ..> WeaponInterface
+
+GameCombatFacade *-- DamageCalculatorInterface
+GameCombatFacade *-- CombatNotifier
+GameCombatFacade *-- DamageCalculationContext
+GameCombatFacade ..> CombatResult
+GameCombatFacade ..> SkillResult
+GameCombatFacade ..> HealResult
+GameCombatFacade ..> CharacterStateContext
+GameCombatFacade ..> Skill
+
+GameServiceInterface <|.. GameService
+GameServiceInterface <|.. AccountSecurityProxy
+GameServiceInterface <|.. LoggingProxy
+AccountSecurityProxy o-- GameServiceInterface
+AccountSecurityProxy --> AccountTier
+LoggingProxy o-- GameServiceInterface
+
+@enduml
+```
+
+---
+
+## 5. Strategy — Daño y Almacenamiento
+
+```plantuml
+@startuml
+title 5. Behavioral - Strategy (calculo de dano y almacenamiento)
+
+package "Strategy :: Damage" #FCE4EC {
+
+  interface DamageStrategyInterface <<Strategy>> {
+    +calculate(attacker, defender, baseDamage, type) : int
+    +getName() : string
+  }
+
+  class PhysicalDamageStrategy {
+    -calculateArmorMitigation(armor, level, diff) : float
+    -calculateCrit(character) : float
+    --
+    +calculate(attacker, defender, baseDamage, type) : int
+    +getName() : string
+  }
+
+  class SpellDamageStrategy {
+    -calculateResistanceMitigation(resistance, level, diff) : float
+    -calculateSpellCrit(character) : float
+    --
+    +calculate(attacker, defender, baseDamage, type) : int
+    +getName() : string
+  }
+
+  class DotDamageStrategy {
+    -calculateResistanceMitigation(resistance, level, diff) : float
+    --
+    +calculate(attacker, defender, baseDamage, type) : int
+    +getName() : string
+  }
+
+  class DamageCalculationContext <<Context>> {
+    -strategy : DamageStrategyInterface
+    --
+    +setStrategy(strategy) : void
+    +calculateDamage(attacker, defender, type, baseDamage) : int
+    +getCurrentStrategyName() : string
+    -selectStrategy(type) : DamageStrategyInterface
+  }
+}
+
+package "Strategy :: Storage" #FCE4EC {
+
+  interface StorageStrategyInterface <<Strategy>> {
+    +save(key, data) : bool
+    +load(key) : mixed
+    +delete(key) : bool
+    +exists(key) : bool
+    +getName() : string
+  }
+
+  class MemoryStorageStrategy {
+    -storage : array
+    --
+    +save(key, data) : bool
+    +load(key) : mixed
+    +delete(key) : bool
+    +exists(key) : bool
+    +getName() : string
+  }
+
+  class FileStorageStrategy {
+    -directory : string
+    --
+    +save(key, data) : bool
+    +load(key) : mixed
+    +delete(key) : bool
+    +exists(key) : bool
+    +getName() : string
+    -sanitizeKey(key) : string
+  }
+
+  class DatabaseStorageStrategy {
+    -pdo : PDO
+    --
+    -createTable() : void
+    +save(key, data) : bool
+    +load(key) : mixed
+    +delete(key) : bool
+    +exists(key) : bool
+    +getName() : string
+  }
+
+  class StorageContext <<Context>> {
+    -strategy : StorageStrategyInterface
+    --
+    +setStrategy(strategy) : void
+    +save(key, data) : bool
+    +load(key) : mixed
+    +delete(key) : bool
+    +exists(key) : bool
+    +getStrategyName() : string
+  }
+}
+
+DamageStrategyInterface <|.. PhysicalDamageStrategy
+DamageStrategyInterface <|.. SpellDamageStrategy
+DamageStrategyInterface <|.. DotDamageStrategy
+DamageCalculationContext o-- DamageStrategyInterface
+DamageCalculationContext ..> PhysicalDamageStrategy
+DamageCalculationContext ..> SpellDamageStrategy
+PhysicalDamageStrategy ..> PlayerCharacter
+SpellDamageStrategy ..> PlayerCharacter
+DotDamageStrategy ..> PlayerCharacter
+
+StorageStrategyInterface <|.. MemoryStorageStrategy
+StorageStrategyInterface <|.. FileStorageStrategy
+StorageStrategyInterface <|.. DatabaseStorageStrategy
+StorageContext o-- StorageStrategyInterface
+
+note bottom of StorageContext
+  Strategy de almacenamiento: se intercambia
+  en caliente entre memoria, fichero JSON y BD.
+  Solo depende de la interface (DIP).
+end note
+
+@enduml
+```
+
+---
+
+## 6. Observer, Command, Template Method y State
+
+```plantuml
+@startuml
+title 6. Behavioral - Observer, Command, Template Method, State
+
+package "Observer" #FCE4EC {
+
+  interface ObserverInterface {
+    +update(event, data) : void
+  }
+
+  interface ObservableInterface {
+    +addObserver(observer) : void
+    +removeObserver(observer) : void
+    +notify(event, data) : void
+  }
+
+  class CombatNotifier <<Subject>> {
+    -observers : array
+    --
+    +addObserver(observer) : void
+    +removeObserver(observer) : void
+    +notify(event, data) : void
+    +notifyCombatStart(attacker, defender) : void
+    +notifyCombatEnd(attacker, defender, result) : void
+    +notifyDamageDealt(attacker, defender, damage, type, source) : void
+    +notifyHealing(healer, target, amount) : void
+    +notifyLevelUp(character, newLevel) : void
+    +notifySkillCast(caster, skill, target) : void
+    +notifyItemLooted(character, item, quantity) : void
+    +notifyQuestCompleted(character, quest) : void
+  }
+
+  class ConsoleLogger {
+    +update(event, data) : void
+  }
+
+  class FileLogger {
+    -logFile : string
+    --
+    +update(event, data) : void
+  }
+
+  class UIUpdater {
+    -uiState : array
+    --
+    +update(event, data) : void
+    +getUIState(event) : array
+    +getAllUIState() : array
+  }
+
+  class CharacterObserver {
+    -character : PlayerCharacter
+    --
+    +update(event, data) : void
+  }
+}
+
+package "Command" #FCE4EC {
+
+  interface CommandInterface <<Command>> {
+    +execute() : CommandResult
+    +undo() : CommandResult
+    +getName() : string
+    +canExecute() : bool
+  }
+
+  class CommandResult {
+    +success : bool
+    +message : string
+    +data : mixed
+  }
+
+  abstract class BaseCommand {
+    -caster : PlayerCharacter
+    -target : PlayerCharacter
+    -skill : Skill
+    -damageContext : DamageCalculationContext
+    -lastResult : CommandResult
+    --
+    +getName() : string
+    +canExecute() : bool
+    +execute() : CommandResult
+    +undo() : CommandResult
+  }
+
+  class CastSpellCommand {
+    -damageDealt : int
+    -manaSpent : int
+    -targetPreviousHealth : int
+    -casterPreviousMana : int
+  }
+
+  class HealCommand {
+    -healAmount : int
+    -targetPreviousHealth : int
+    -casterPreviousMana : int
+  }
+
+  class BuffCommand {
+    -buffName : string
+    -duration : int
+    -statModifiers : array
+  }
+
+  class CommandQueue <<Invoker>> {
+    -queue : array
+    -history : array
+    -maxHistorySize : int
+    --
+    +enqueue(command) : void
+    +executeNext() : CommandResult
+    +executeAll() : array
+    +undoLast() : CommandResult
+    +getQueueSize() : int
+    +getHistorySize() : int
+    +clear() : void
+  }
+
+  class MacroCommand {
+    -commands : array
+    -name : string
+    --
+    +addCommand(command) : void
+    +execute() : CommandResult
+    +undo() : CommandResult
+    +getName() : string
+    +canExecute() : bool
+  }
+}
+
+package "Template Method" #FCE4EC {
+
+  abstract class QuestCompletionTemplate <<TemplateMethod>> {
+    +completeQuest(character) : QuestCompletionResult
+    -onPreCompletion(character) : void
+    -validateCompletion(character) : bool
+    -calculateRewards(character) : QuestRewards
+    -grantRewards(character, rewards) : void
+    -onPostCompletion(character, rewards) : void
+    -canStart(character) : bool
+  }
+
+  class QuestRewards {
+    +experience : int
+    +gold : GoldAmount
+    +items : array
+    +reputation : array
+    --
+    +add(other) : QuestRewards
+  }
+
+  class QuestCompletionResult {
+    +success : bool
+    +message : string
+    +rewards : QuestRewards
+  }
+
+  class SimpleQuestCompletion {
+    -questId : string
+    -questTitle : string
+    -requiredLevel : int
+    -experienceReward : int
+    -goldReward : GoldAmount
+    -itemReward : Item
+    -objectiveCheck : Closure
+  }
+
+  class ChainQuestCompletion {
+    -chain : array
+    -currentStep : int
+    --
+    +addStep(step) : void
+  }
+
+  class DailyQuestCompletion {
+    -questId : string
+    -title : string
+    -requiredLevel : int
+    -baseExperience : int
+    -baseGold : GoldAmount
+    -objectiveCheck : Closure
+    -completedToday : array
+  }
+}
+
+package "State" #FCE4EC {
+
+  interface StateInterface <<State>> {
+    +enter(character) : void
+    +exit(character) : void
+    +update(character) : void
+    +onDamageTaken(character, amount) : void
+    +onHeal(character, amount) : void
+    +canAttack() : bool
+    +canMove() : bool
+    +canCast() : bool
+    +getState() : CharacterState
+  }
+
+  abstract class BaseState {
+    -state : CharacterState
+    --
+    +enter(character) : void
+    +exit(character) : void
+    +update(character) : void
+    +onDamageTaken(character, amount) : void
+    +onHeal(character, amount) : void
+    +canAttack() : bool
+    +canMove() : bool
+    +canCast() : bool
+    +getState() : CharacterState
+  }
+
+  class NormalState
+  class StunnedState {
+    -remainingDuration : int
+  }
+  class DeadState {
+    -releaseTimer : int
+  }
+  class PoisonedState {
+    -tickDamage : int
+    -remainingDuration : int
+    -tickInterval : int
+  }
+  class FrozenState {
+    -remainingDuration : int
+  }
+
+  class CharacterStateContext <<Context>> {
+    -character : PlayerCharacter
+    -currentState : StateInterface
+    --
+    +transitionTo(newState, params) : void
+    +tick() : void
+    +onDamageTaken(amount) : void
+    +onHeal(amount) : void
+    +canAttack() : bool
+    +canMove() : bool
+    +canCast() : bool
+    +getCurrentState() : CharacterState
+    -createState(state, params) : StateInterface
+  }
+}
+
+ObserverInterface <|.. ConsoleLogger
+ObserverInterface <|.. FileLogger
+ObserverInterface <|.. UIUpdater
+ObserverInterface <|.. CharacterObserver
+ObservableInterface <|.. CombatNotifier
+CombatNotifier o-- ObserverInterface
+CharacterObserver o-- PlayerCharacter
+
+CommandInterface <|.. BaseCommand
+CommandInterface <|.. MacroCommand
+BaseCommand <|-- CastSpellCommand
+BaseCommand <|-- HealCommand
+BaseCommand <|-- BuffCommand
+BaseCommand o-- PlayerCharacter
+BaseCommand o-- Skill
+BaseCommand *-- DamageCalculationContext
+BaseCommand ..> CommandResult
+CommandQueue o-- CommandInterface
+MacroCommand o-- CommandInterface
+
+QuestCompletionTemplate <|-- SimpleQuestCompletion
+QuestCompletionTemplate <|-- ChainQuestCompletion
+QuestCompletionTemplate <|-- DailyQuestCompletion
+QuestCompletionTemplate ..> QuestCompletionResult
+QuestCompletionTemplate ..> QuestRewards
+QuestCompletionTemplate ..> PlayerCharacter
+QuestRewards *-- GoldAmount
+ChainQuestCompletion o-- QuestCompletionTemplate
+
+StateInterface <|.. BaseState
+BaseState <|-- NormalState
+BaseState <|-- StunnedState
+BaseState <|-- DeadState
+BaseState <|-- PoisonedState
+BaseState <|-- FrozenState
+CharacterStateContext o-- StateInterface
+CharacterStateContext o-- PlayerCharacter
+BaseState --> CharacterState
+NormalState ..> PlayerCharacter
+PoisonedState ..> PlayerCharacter
+FrozenState ..> PlayerCharacter
+
+note bottom of QuestCompletionTemplate
+  completeQuest() es final: define el esqueleto
+  y delega los pasos en los metodos sobrescritos.
+end note
+
+@enduml
+```
+
+---
+
+## 7. Bounded Contexts (DDD)
+
+```plantuml
+@startuml
+title 7. Contexto Delimitado - Combat, Inventory, Billing
+
+package "Combat" #D1C4E9 {
+
+  class CombatService {
+    -combatFacade : GameCombatFacade
+    -damageContext : DamageCalculationContext
+    --
+    +initiateCombat(attacker, defender) : CombatResult
+    +castSpell(caster, target, skill) : SkillResult
+    +autoAttack(attacker, defender) : SkillResult
+    +heal(healer, target, amount) : HealResult
+    +calculateDamage(attacker, defender, type, baseDamage) : int
+    +setDamageStrategy(strategy) : void
+  }
+
+  interface CombatRepositoryInterface {
+    +saveCombatLog(id, log) : void
+    +getCombatLog(id) : array
+  }
+
+  class InMemoryCombatRepository {
+    -logs : array
+    --
+    +saveCombatLog(id, log) : void
+    +getCombatLog(id) : array
+  }
+}
+
+package "Inventory" #D1C4E9 {
+
+  class InventoryAggregate <<Aggregate Root>> {
+    -characterId : string
+    -equippedItems : array
+    -bagItems : array
+    -bagCapacity : int
+    -version : int
+    --
+    +getCharacterId() : string
+    +getEquippedItems() : array
+    +getBagItems() : array
+    +getBagCapacity() : int
+    +getBagUsedSlots() : int
+    +getBagFreeSlots() : int
+    +getVersion() : int
+    +equipItem(item) : bool
+    +unequipItem(slot) : Item
+    +addToBag(item) : bool
+    +removeFromBag(itemId) : Item
+    +moveToBag(slot) : bool
+    +expandBag(slots) : void
+    +getTotalWeight() : int
+  }
+
+  interface InventoryRepositoryInterface {
+    +save(inventory) : void
+    +findByCharacterId(characterId) : InventoryAggregate
+    +delete(characterId) : void
+  }
+
+  class InMemoryInventoryRepository {
+    -inventories : array
+    --
+    +save(inventory) : void
+    +findByCharacterId(characterId) : InventoryAggregate
+    +delete(characterId) : void
+  }
+
+  class InventoryService {
+    -repository : InventoryRepositoryInterface
+    --
+    +getInventory(characterId) : InventoryAggregate
+    +equipItem(characterId, item) : bool
+    +unequipItem(characterId, slot) : Item
+    +addItemToBag(characterId, item) : bool
+    +removeItemFromBag(characterId, itemId) : Item
+    +expandBag(characterId, slots) : void
+  }
+}
+
+package "Billing" #D1C4E9 {
+
+  interface PaymentMethodInterface {
+    +charge(amount) : PaymentResult
+    +refund(amount) : PaymentResult
+    +getName() : string
+  }
+
+  class PaymentResult {
+    +success : bool
+    +transactionId : string
+    +message : string
+  }
+
+  class InGameGoldPayment {
+    -character : PlayerCharacter
+    --
+    +charge(amount) : PaymentResult
+    +refund(amount) : PaymentResult
+    +getName() : string
+  }
+
+  class RealMoneyPayment {
+    -accountId : string
+    -balance : float
+    --
+    +charge(amount) : PaymentResult
+    +refund(amount) : PaymentResult
+    +getName() : string
+    +getBalance() : float
+    +addFunds(amount) : void
+  }
+
+  class Subscription <<Entity>> {
+    -accountId : string
+    -tier : string
+    -startDate : DateTimeImmutable
+    -endDate : DateTimeImmutable
+    -autoRenew : bool
+    -paymentMethodId : string
+    --
+    +getAccountId() : string
+    +getTier() : string
+    +isActive() : bool
+    +isAutoRenew() : bool
+    +getDaysRemaining() : int
+    +renew(months) : void
+    +cancel() : void
+  }
+
+  interface SubscriptionRepositoryInterface {
+    +findByAccountId(accountId) : Subscription
+    +save(subscription) : void
+  }
+
+  class InMemorySubscriptionRepository {
+    -subscriptions : array
+    --
+    +findByAccountId(accountId) : Subscription
+    +save(subscription) : void
+  }
+
+  class BillingService {
+    -subscriptionRepository : SubscriptionRepositoryInterface
+    --
+    +purchaseSubscription(accountId, tier, months, paymentMethod) : PaymentResult
+    +cancelSubscription(accountId) : bool
+    +getSubscriptionStatus(accountId) : array
+    +processRenewals(paymentMethod) : array
+  }
+
+  class AuctionListing <<Entity>> {
+    +id : string
+    +sellerId : string
+    +sellerName : string
+    +item : Item
+    +startingBid : GoldAmount
+    +currentBid : GoldAmount
+    +buyoutPrice : GoldAmount
+    +startTime : DateTimeImmutable
+    +endTime : DateTimeImmutable
+    +deposit : GoldAmount
+    +currentBidderId : string
+  }
+
+  class BidResult {
+    +success : bool
+    +transactionId : string
+    +message : string
+  }
+
+  class AuctionHouseService {
+    -listings : array
+    -commissionRate : float
+    --
+    +createListing(seller, item, startingBid, buyoutPrice, hours) : AuctionListing
+    +placeBid(listingId, bidder, bidAmount) : BidResult
+    +buyout(listingId, buyer) : BidResult
+    +getActiveListings() : array
+    +getListing(listingId) : AuctionListing
+    -finalizeSale(listing, buyer, finalPrice) : void
+  }
+}
+
+CombatService *-- GameCombatFacade
+CombatService *-- DamageCalculationContext
+CombatService ..> PlayerCharacter
+CombatService ..> Skill
+CombatService ..> DamageType
+CombatService ..> CombatResult
+CombatRepositoryInterface <|.. InMemoryCombatRepository
+
+InventoryRepositoryInterface <|.. InMemoryInventoryRepository
+InMemoryInventoryRepository o-- InventoryAggregate
+InventoryService *-- InventoryRepositoryInterface
+InventoryService ..> InventoryAggregate
+InventoryAggregate o-- Item
+InventoryAggregate ..> ItemSlot
+InventoryAggregate ..> ItemId
+
+PaymentMethodInterface <|.. InGameGoldPayment
+PaymentMethodInterface <|.. RealMoneyPayment
+SubscriptionRepositoryInterface <|.. InMemorySubscriptionRepository
+InMemorySubscriptionRepository o-- Subscription
+BillingService *-- SubscriptionRepositoryInterface
+BillingService ..> PaymentMethodInterface
+BillingService ..> Subscription
+BillingService ..> PaymentResult
+InGameGoldPayment o-- PlayerCharacter
+RealMoneyPayment ..> GoldAmount
+AuctionHouseService o-- AuctionListing
+AuctionHouseService ..> AuctionListing
+AuctionHouseService ..> BidResult
+AuctionHouseService ..> PlayerCharacter
+AuctionListing o-- Item
+AuctionListing o-- GoldAmount
+
+note bottom of CombatService
+  Cada Bounded Context expone
+  un servicio de aplicacion propio
+  y no comparte modelo con los demas.
+end note
+
+@enduml
+```
+
+---
+
+## 📖 Convenciones del Diagrama
+
+### Stereotipos
+
+| Stereotipo | Significado |
+|---|---|
 | `<<Entity>>` | Entidad DDD con identidad persistente (ID único) |
 | `<<Aggregate Root>>` | Raíz de agregado: único punto de entrada transaccional |
 | `<<readonly>>` | Value Object inmutable (`readonly class` de PHP 8.2) |
 | `<<Singleton>>` | Instancia única global |
 | `<<Adapter>>` | Adapta una API legacy a la interfaz moderna |
-| `<<Facade>>` | Punto de entrada simplificado a subsistemas |
-| `<<Proxy>>` | Controla acceso al objeto real |
-| `<<Strategy>>` / `<<Context>>` | Algoritmo intercambiable / su selector |
-| `<<Subject>>` / `ObserverInterface` | Patrón Observer |
-| `<<Command>>` / `<<Invoker>>` | Patrón Command |
-| `<<TemplateMethod>>` | Esqueleto de algoritmo con hooks |
+| `<<Facade>>` | Punto de entrada simplificado a varios subsistemas |
+| `<<Proxy>>` | Controla el acceso al objeto real |
+| `<<RealSubject>>` | Objeto real envuelto por el Proxy |
+| `<<Strategy>>` / `<<Context>>` | Algoritmo intercambiable / su selector en tiempo de ejecución |
+| `<<Subject>>` | Observable del patrón Observer |
+| `<<Command>>` / `<<Invoker>>` | Comando encapsulado / cola que lo ejecuta y deshace |
+| `<<TemplateMethod>>` | Esqueleto de algoritmo con pasos sobrescritos |
 | `<<State>>` | Estado del personaje |
 | `<<Leaf>>` / `<<Composite>>` | Nodo hoja / nodo compuesto |
-| `<<RealSubject>>` | Objeto real envuelto por el Proxy |
 
-### Tipos de Relación Utilizados
+### Tipos de Relación
 
 | Flecha | Relación | Ejemplo |
-|--------|----------|---------|
-| `A <\|-- B` | Herencia (B hereda de A) | `BaseState <\|-- PoisonedState` |
+|---|---|---|
+| `A <|-- B` | Herencia | `BaseState <|-- PoisonedState` |
 | `A *-- B` | Composición (ciclo de vida atómico) | `Item *-- ItemId` |
-| `A o-- B` | Agregación (ciclo de vida independiente) | `CombatNotifier o-- "*" ObserverInterface` |
-| `A ..> B` | Dependencia (uso, no composición) | `GameWorld ..> PlayerCharacter` |
-| `A <\|.. B` | Realización (implementa interfaz) | `StorageContext <\|.. StorageStrategyInterface` |
-| `A ..\|> B` | Flecha punteada de interfaz | (reservada) |
+| `A o-- B` | Agregación | `CombatNotifier o-- ObserverInterface` |
+| `A ..> B` | Dependencia (uso, sin composición) | `GameWorld ..> PlayerCharacter` |
+| `A <|.. B` | Realización (implementa interfaz) | `StorageContext <|.. StorageStrategyInterface` |
+
+### Elementos omitidos por legibilidad
+
+- **Constructores**: se omiten salvo que formen parte de la API pública relevante.
+- **Tipos anulables** (`?Item`, `?GoldAmount`): se muestran sin el `?`; el detalle está en el código.
+- **Modificadores `static`**: en el diagrama aparecen como atributos o métodos simples; en el código son `public static`.
+- **Cuerpos de método**: solo las firmas.
+- **Miembros privados de las implementaciones**: solo en las clases donde son relevantes para el patrón.
 
 ### Relaciones Clave del Diseño
 
-1. **DIP (Dependency Inversion)**: `GameCombatFacade`, `InventoryService`, `BillingService` y `CombatService` dependen de **interfaces**, nunca de implementaciones concretas.
-2. **LSP (Liskov Substitution)**: `LegacyDamageCalculatorAdapter` y `ModernDamageCalculator` son intercambiables donde se espera `DamageCalculatorInterface`.
-3. **Alta Cohesión**: Cada *Bounded Context* (`Combat`, `Inventory`, `Billing`) tiene su modelo, repositorios y servicios sin dependencias cruzadas.
-4. **Invariantes protegidas**: `InventoryAggregate` mantiene la consistencia entre equipamiento y bolsa; los Value Objects validan en su constructor.
+1. **DIP** — `GameCombatFacade`, `CombatService`, `InventoryService` y `BillingService` dependen de **interfaces**, nunca de implementaciones concretas.
+2. **LSP** — `LegacyDamageCalculatorAdapter` y `ModernDamageCalculator` son intercambiables donde se espera `DamageCalculatorInterface`.
+3. **Alta cohesión** — cada Bounded Context (`Combat`, `Inventory`, `Billing`) tiene modelo, repositorios y servicios propios, sin dependencias cruzadas.
+4. **Invariantes** — `InventoryAggregate` mantiene la consistencia entre equipamiento y bolsa; los Value Objects validan en su constructor y son inmutables.
