@@ -84,7 +84,7 @@ class CastSpellCommand extends BaseCommand
 
         $this->target->takeDamage($this->damageDealt);
 
-        return new CommandResult(
+        $this->lastResult = new CommandResult(
             true,
             "{$this->caster->getName()} casts {$this->skill->name} on {$this->target->getName()} for {$this->damageDealt} {$this->skill->damageType->value} damage",
             [
@@ -93,6 +93,8 @@ class CastSpellCommand extends BaseCommand
                 'target_health' => $this->target->getHealth()->current,
             ]
         );
+
+        return $this->lastResult;
     }
 
     public function undo(): CommandResult
@@ -140,7 +142,7 @@ class HealCommand extends BaseCommand
 
         $this->target->heal($actualHeal);
 
-        return new CommandResult(
+        $this->lastResult = new CommandResult(
             true,
             "{$this->caster->getName()} casts {$this->skill->name} on {$this->target->getName()} healing for {$actualHeal} HP",
             [
@@ -149,6 +151,8 @@ class HealCommand extends BaseCommand
                 'target_health' => $this->target->getHealth()->current,
             ]
         );
+
+        return $this->lastResult;
     }
 
     public function undo(): CommandResult
@@ -201,7 +205,7 @@ class BuffCommand extends BaseCommand
         $this->caster->spendMana($this->skill->manaCost);
         $this->target->applyEffect($this->buffName, $this->duration);
 
-        return new CommandResult(
+        $this->lastResult = new CommandResult(
             true,
             "{$this->caster->getName()} casts {$this->skill->name} on {$this->target->getName()} applying {$this->buffName} for {$this->duration} seconds",
             [
@@ -210,6 +214,8 @@ class BuffCommand extends BaseCommand
                 'mana_spent' => $this->skill->manaCost,
             ]
         );
+
+        return $this->lastResult;
     }
 
     public function undo(): CommandResult

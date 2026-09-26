@@ -10,7 +10,7 @@ class QuestRewards
 {
     public function __construct(
         public int $experience = 0,
-        public GoldAmount $gold = null,
+        public ?GoldAmount $gold = null,
         public array $items = [],
         public array $reputation = []
     ) {

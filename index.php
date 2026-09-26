@@ -361,35 +361,57 @@ echo "-----------------------------------\n";
 $damageContext = new DamageCalculationContext();
 $commandQueue = new CommandQueue();
 
-$fireball = Skill::mageSkills()[0]; // Fireball
-$frostbolt = Skill::mageSkills()[1]; // Frostbolt
+// Usamos a Arthas (mago humano nivel 40) como lanzador: domina Fireball (nivel 1),
+// Frostbolt (nivel 4) y Arcane Explosion (nivel 14).
+// Con Jaina (nivel 1) solo seria posible lanzar Fireball.
+$caster = $veteranHuman;
+$target = $veteranMage;
 
-$castFireball = new CastSpellCommand($humanMage, $orcWarrior, $fireball, $damageContext);
-$castFrostbolt = new CastSpellCommand($humanMage, $orcWarrior, $frostbolt, $damageContext);
+$fireball = Skill::mageSkills()[0]; // Fireball  - nivel 1
+$frostbolt = Skill::mageSkills()[1]; // Frostbolt - nivel 4
+$arcaneBlast = Skill::mageSkills()[2]; // Arcane Explosion - nivel 14
+
+echo "Caster: {$caster->getName()} (nivel {$caster->getLevel()}, {$caster->getMana()} mana)\n";
+echo "Target: {$target->getName()} (nivel {$target->getLevel()}, {$target->getHealth()} HP)\n\n";
 
 echo "Queueing spells...\n";
-$commandQueue->enqueue($castFireball);
-$commandQueue->enqueue($castFrostbolt);
+$commandQueue->enqueue(new CastSpellCommand($caster, $target, $fireball, $damageContext));
+$commandQueue->enqueue(new CastSpellCommand($caster, $target, $frostbolt, $damageContext));
 
 echo "Executing queued spells:\n";
 while ($commandQueue->getQueueSize() > 0) {
     $result = $commandQueue->executeNext();
-    echo "  {$result->message}\n";
+    if ($result !== null) {
+        echo "  {$result->message}\n";
+    }
 }
 
 echo "\nUndoing last spell:\n";
 $undoResult = $commandQueue->undoLast();
-echo "  {$undoResult->message}\n";
+if ($undoResult !== null) {
+    echo "  {$undoResult->message}\n";
+    echo "  Target HP tras el undo: {$target->getHealth()}\n";
+} else {
+    echo "  Nothing to undo (no spell was executed successfully)\n";
+}
 
-// Macro Command
+// Macro Command: combo de 3 hechizos ejecutados como una unidad
 $macro = new MacroCommand('Mage Burst Combo');
-$macro->addCommand(new CastSpellCommand($humanMage, $orcWarrior, Skill::mageSkills()[0], $damageContext));
-$macro->addCommand(new CastSpellCommand($humanMage, $orcWarrior, Skill::mageSkills()[1], $damageContext));
-$macro->addCommand(new CastSpellCommand($humanMage, $orcWarrior, Skill::mageSkills()[2], $damageContext));
+$macro->addCommand(new CastSpellCommand($caster, $target, $fireball, $damageContext));
+$macro->addCommand(new CastSpellCommand($caster, $target, $frostbolt, $damageContext));
+$macro->addCommand(new CastSpellCommand($caster, $target, $arcaneBlast, $damageContext));
 
 echo "\nExecuting Macro: {$macro->getName()}\n";
 $macroResult = $macro->execute();
-echo "  {$macroResult->message}\n\n";
+echo "  {$macroResult->message}\n";
+if ($macroResult->success) {
+    echo "  Target HP tras el combo: {$target->getHealth()}\n";
+    echo "  Undoing the whole macro:\n";
+    $macroUndo = $macro->undo();
+    echo "  {$macroUndo->message}\n";
+    echo "  Target HP tras el undo del macro: {$target->getHealth()}\n";
+}
+echo "\n";
 
 // ================================================================
 // 14. TEMPLATE METHOD - Quest Completion
@@ -424,9 +446,14 @@ $dailyQuest = new DailyQuestCompletion(
     fn($c) => $c->getLevel() >= 60
 );
 
-echo "\nAttempting daily quest (level 60):\n";
+echo "\nAttempting daily quest (requires level 60):\n";
+// $veteranHuman es Arthas (nivel 40) -> requisitos incumplidos a proposito.
+// $veteranMage es Khadgar (nivel 60)  -> la mision se completa.
 $result = $dailyQuest->completeQuest($veteranHuman);
-echo "  {$result->message}\n";
+echo "  Arthas (nivel {$veteranHuman->getLevel()}): {$result->message}\n";
+
+$result = $dailyQuest->completeQuest($veteranMage);
+echo "  Khadgar (nivel {$veteranMage->getLevel()}): {$result->message}\n";
 if ($result->rewards) {
     echo "  Rewards: {$result->rewards->experience} XP, {$result->rewards->gold}\n";
 }
