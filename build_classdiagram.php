@@ -115,24 +115,31 @@ if (substr_count($full, '{') !== substr_count($full, '}')) {
 }
 
 // ---- Verificacion en 2 mitades por el limite de URL del servidor ----
-// Se parte justo antes de un "package" de nivel superior para que
-// ambas mitades sean diagramas completos y balanceados
-$lines  = preg_split('/\R/', $full);
-$cutIdx = null;
-$depth  = 0;
+// Se parte justo antes de un "package" de nivel superior, elegido cerca de la
+// mitad del fichero, para que ambas mitades sean diagramas completos y balanceados
+$lines     = preg_split('/\R/', $full);
+$candidates = [];
+$depth     = 0;
 foreach ($lines as $i => $l) {
-    // La profundidad se comprueba ANTES de aplicar las llaves de esta linea:
-    // una linea "package X {" abre un nivel, asi que aqui depth sigue siendo 0.
+    // La profundidad se comprueba ANTES de aplicar las llaves de esta linea
     if ($i > 10 && $depth === 0 && preg_match('/^\s*package\s/', $l)) {
-        $cutIdx = $i;
-        break;
+        $candidates[] = $i;
     }
     $depth += substr_count($l, '{') - substr_count($l, '}');
 }
 
-if ($cutIdx === null) { echo "  no se pudo partir\n"; exit(1); }
+if ($candidates === []) { echo "  no se pudo partir\n"; exit(1); }
 
-printf("\n  corte en la linea %d: %s\n", $cutIdx, trim($lines[$cutIdx]));
+$mid      = count($lines) / 2;
+$cutIdx   = $candidates[0];
+$bestDist = PHP_INT_MAX;
+foreach ($candidates as $c) {
+    $d = abs($c - $mid);
+    if ($d < $bestDist) { $bestDist = $d; $cutIdx = $c; }
+}
+
+printf("\n  %d paquetes de nivel superior; corte en la linea %d de %d: %s\n",
+    count($candidates), $cutIdx, count($lines), trim($lines[$cutIdx]));
 
 $partA = implode("\n", array_slice($lines, 0, $cutIdx)) . "\n@enduml\n";
 $rest  = array_slice($lines, $cutIdx, -1);
